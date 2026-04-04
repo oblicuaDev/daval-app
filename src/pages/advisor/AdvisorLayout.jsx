@@ -1,3 +1,4 @@
+import logo from '../../logo-cartagena.jpg';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -21,14 +22,15 @@ export default function AdvisorLayout() {
       <header className="bg-blue-900 text-white sticky top-0 z-30 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
           {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="bg-white rounded-lg px-2 py-1">
+              <img
+                src={logo}
+                alt="Papelería Cartagena"
+                className="h-8 w-auto object-contain"
+              />
             </div>
-            <div>
-              <span className="font-bold text-sm tracking-tight block">Oblicua DEMO</span>
-              {branch && <span className="text-blue-300 text-xs">{branch.name}</span>}
-            </div>
+            {branch && <span className="text-blue-300 text-xs hidden sm:block">{branch.name}</span>}
           </div>
 
           {/* Nav */}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { ShoppingCart, Grid, List, Plus, Minus, Package } from 'lucide-react';
+import { ShoppingCart, Grid, List, Plus, Minus, X, Package } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { getPrice, formatCOP } from '../../data/mockData';
+import productFallback from '../../product.webp';
 
 const CATEGORY_COLORS = [
   'bg-blue-100 text-blue-700',
@@ -14,46 +15,96 @@ const CATEGORY_COLORS = [
 ];
 
 function ProductImage({ image, name, className }) {
-  if (image) {
-    return <img src={image} alt={name} className={className} />;
-  }
-  return (
-    <div className={`${className} flex items-center justify-center bg-gray-100`}>
-      <Package className="w-10 h-10 text-gray-300" />
-    </div>
-  );
+  return <img src={image || productFallback} alt={name} className={className} />;
 }
 
-function QuantitySelector({ onAdd }) {
+function ProductModal({ product, price, categoryName, categoryColor, onClose, onAdd }) {
   const [qty, setQty] = useState(1);
+
+  function handleAdd() {
+    onAdd(qty);
+    onClose();
+  }
+
   return (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={() => setQty(q => Math.max(1, q - 1))}
-        className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition text-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
-        <Minus className="w-3 h-3" />
-      </button>
-      <input
-        type="number"
-        min={1}
-        value={qty}
-        onChange={e => setQty(Math.max(1, Number(e.target.value)))}
-        className="w-12 text-center border border-gray-300 rounded-lg py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
-      <button
-        onClick={() => setQty(q => q + 1)}
-        className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition text-sm"
-      >
-        <Plus className="w-3 h-3" />
-      </button>
-      <button
-        onClick={() => onAdd(qty)}
-        className="flex items-center gap-1 px-3 py-1.5 bg-blue-700 text-white rounded-lg text-xs font-medium hover:bg-blue-800 transition whitespace-nowrap"
-      >
-        <ShoppingCart className="w-3 h-3" />
-        Agregar
-      </button>
+        {/* Image */}
+        <div className="relative w-full h-64 bg-gray-50">
+          <ProductImage
+            image={product.image}
+            name={product.name}
+            className="w-full h-full object-contain p-4"
+          />
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 bg-white rounded-full shadow text-gray-500 hover:text-gray-800 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          {product.stock < 20 && product.stock > 0 && (
+            <span className="absolute top-3 left-3 text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700">
+              Pocas unidades
+            </span>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-blue-600 font-mono">{product.sku}</p>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor}`}>
+                {categoryName}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 leading-snug">{product.name}</h3>
+            {product.description && (
+              <p className="text-sm text-gray-500 mt-1">{product.description}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-2xl font-bold text-blue-700">{formatCOP(price)}</p>
+            <p className="text-xs text-gray-400">por {product.unit}</p>
+          </div>
+
+          {/* Quantity + Add */}
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setQty(q => Math.max(1, q - 1))}
+                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={e => setQty(Math.max(1, Number(e.target.value)))}
+                className="w-14 text-center py-2 text-sm font-medium focus:outline-none border-x border-gray-300"
+              />
+              <button
+                onClick={() => setQty(q => q + 1)}
+                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <button
+              onClick={handleAdd}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold transition"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Agregar a mi pedido
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -63,11 +114,11 @@ export default function ClientCatalog() {
   const headerSearch = context.search || '';
   const { products, categories, priceLists, addToCart } = useApp();
   const { currentUser } = useAuth();
-  const [localSearch, setLocalSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
+  const [modalProduct, setModalProduct] = useState(null);
 
-  const search = headerSearch || localSearch;
+  const search = headerSearch;
   const priceListId = currentUser?.priceListId || 1;
 
   function getCategoryName(id) {
@@ -92,6 +143,8 @@ export default function ClientCatalog() {
     const unitPrice = getPrice(product.basePrice, priceListId, priceLists);
     addToCart(product, qty, unitPrice);
   }
+
+  const modalPrice = modalProduct ? getPrice(modalProduct.basePrice, priceListId, priceLists) : 0;
 
   return (
     <div className="space-y-5">
@@ -151,18 +204,16 @@ export default function ClientCatalog() {
             return (
               <div
                 key={product.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition-shadow overflow-hidden group"
+                onClick={() => setModalProduct(product)}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md hover:border-blue-200 transition-all overflow-hidden cursor-pointer group"
               >
                 {/* Product image */}
                 <div className="relative w-full h-44 overflow-hidden bg-gray-50">
                   <ProductImage
                     image={product.image}
                     name={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                   />
-                  <span className={`absolute top-2 left-2 text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(product.categoryId)}`}>
-                    {getCategoryName(product.categoryId)}
-                  </span>
                   {product.stock < 20 && product.stock > 0 && (
                     <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700">
                       Pocas unidades
@@ -172,24 +223,12 @@ export default function ClientCatalog() {
 
                 {/* Content */}
                 <div className="p-4 flex flex-col flex-1">
-                  <p className="text-xs text-gray-400 font-mono mb-1">{product.sku}</p>
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2 leading-snug">{product.name}</h3>
-                  <p className="text-xs text-gray-400 mb-3 flex-1 line-clamp-2">{product.description}</p>
-
-                  <div className="flex items-end justify-between mb-3">
-                    <div>
-                      <p className="text-xl font-bold text-blue-700">{formatCOP(price)}</p>
-                      <p className="text-xs text-gray-400">por {product.unit}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-400">Stock</p>
-                      <p className={`text-sm font-semibold ${product.stock < 20 ? 'text-orange-600' : 'text-gray-700'}`}>
-                        {product.stock}
-                      </p>
-                    </div>
+                  <p className="text-xs text-blue-600 font-mono mb-1">{product.sku}</p>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 line-clamp-2 leading-snug flex-1">{product.name}</h3>
+                  <div>
+                    <p className="text-xl font-bold text-blue-700">{formatCOP(price)}</p>
+                    <p className="text-xs text-gray-400">por {product.unit}</p>
                   </div>
-
-                  <QuantitySelector onAdd={(qty) => handleAdd(product, qty)} />
                 </div>
               </div>
             );
@@ -214,25 +253,27 @@ export default function ClientCatalog() {
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Producto</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Categoría</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Precio</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Stock</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Agregar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(product => {
                   const price = getPrice(product.basePrice, priceListId, priceLists);
                   return (
-                    <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={product.id}
+                      onClick={() => setModalProduct(product)}
+                      className="hover:bg-blue-50 transition-colors cursor-pointer"
+                    >
                       <td className="px-4 py-3">
                         <ProductImage
                           image={product.image}
                           name={product.name}
-                          className="w-12 h-12 object-cover rounded-lg"
+                          className="w-12 h-12 object-contain rounded-lg bg-gray-50 p-0.5"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-gray-800">{product.name}</p>
-                        <p className="text-xs text-gray-400 font-mono">{product.sku}</p>
+                        <p className="text-xs text-blue-600 font-mono">{product.sku}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(product.categoryId)}`}>
@@ -243,20 +284,12 @@ export default function ClientCatalog() {
                         <p className="text-sm font-bold text-blue-700">{formatCOP(price)}</p>
                         <p className="text-xs text-gray-400">/{product.unit}</p>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-sm font-medium ${product.stock < 20 ? 'text-orange-600' : 'text-gray-700'}`}>
-                          {product.stock}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <QuantitySelector onAdd={(qty) => handleAdd(product, qty)} />
-                      </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
                       No se encontraron productos
                     </td>
                   </tr>
@@ -265,6 +298,18 @@ export default function ClientCatalog() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {modalProduct && (
+        <ProductModal
+          product={modalProduct}
+          price={modalPrice}
+          categoryName={getCategoryName(modalProduct.categoryId)}
+          categoryColor={getCategoryColor(modalProduct.categoryId)}
+          onClose={() => setModalProduct(null)}
+          onAdd={(qty) => handleAdd(modalProduct, qty)}
+        />
       )}
     </div>
   );

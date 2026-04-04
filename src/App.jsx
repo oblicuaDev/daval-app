@@ -11,9 +11,11 @@ import AdminPriceLists from './pages/admin/AdminPriceLists';
 import AdminClients from './pages/admin/AdminClients';
 import AdminBranches from './pages/admin/AdminBranches';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminOrders from './pages/admin/AdminOrders';
 import ClientLayout from './pages/client/ClientLayout';
 import ClientCatalog from './pages/client/ClientCatalog';
 import ClientOrders from './pages/client/ClientOrders';
+import ClientConfirmOrder from './pages/client/ClientConfirmOrder';
 import AdvisorLayout from './pages/advisor/AdvisorLayout';
 import AdvisorOrders from './pages/advisor/AdvisorOrders';
 import AdvisorOrderDetail from './pages/advisor/AdvisorOrderDetail';
@@ -33,12 +35,13 @@ export default function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            <Route path="productos" element={<AdminProducts />} />
-            <Route path="categorias" element={<AdminCategories />} />
+            <Route path="catalogo" element={<AdminProducts />} />
+            <Route path="centros-de-costos" element={<AdminCategories />} />
             <Route path="listas-precios" element={<AdminPriceLists />} />
             <Route path="clientes" element={<AdminClients />} />
+            <Route path="pedidos" element={<AdminOrders />} />
             <Route path="sedes" element={<AdminBranches />} />
-            <Route path="usuarios" element={<AdminUsers />} />
+            <Route path="asesores" element={<AdminUsers />} />
           </Route>
           <Route
             path="/cliente"
@@ -50,6 +53,7 @@ export default function App() {
           >
             <Route index element={<ClientCatalog />} />
             <Route path="pedidos" element={<ClientOrders />} />
+            <Route path="confirmar-pedido" element={<ClientConfirmOrder />} />
           </Route>
           <Route
             path="/asesor"

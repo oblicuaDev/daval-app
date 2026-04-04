@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, Pencil, Eye, EyeOff, Upload, X, Filter, ImageIcon } from 'lucide-react';
+import { Plus, Search, Pencil, Eye, EyeOff, Upload, X, Filter, ImageIcon, Camera } from 'lucide-react';
+import productFallback from '../../product.webp';
 import { useApp } from '../../context/AppContext';
 import { formatCOP } from '../../data/mockData';
 
@@ -170,17 +171,11 @@ export default function AdminProducts() {
               {filtered.map(product => (
                 <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
-                    {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-11 h-11 object-cover rounded-lg border border-gray-100"
-                      />
-                    ) : (
-                      <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <ImageIcon className="w-5 h-5 text-gray-300" />
-                      </div>
-                    )}
+                    <img
+                      src={product.image || productFallback}
+                      alt={product.name}
+                      className="w-11 h-11 object-cover rounded-lg border border-gray-100"
+                    />
                   </td>
                   <td className="px-4 py-3 text-xs font-mono text-gray-500">{product.sku}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs">
@@ -239,13 +234,20 @@ export default function AdminProducts() {
             {/* Image Upload */}
             <div>
               <label className={labelClass}>Imagen del Producto</label>
-              {form.image ? (
-                <div className="relative">
-                  <img
-                    src={form.image}
-                    alt="preview"
-                    className="w-full h-44 object-cover rounded-xl border border-gray-200"
-                  />
+              <div className="relative group">
+                <img
+                  src={form.image || productFallback}
+                  alt="preview"
+                  className="w-full h-44 object-cover rounded-xl border border-gray-200"
+                />
+                <label className="absolute inset-0 flex flex-col items-center justify-center rounded-xl cursor-pointer bg-black bg-opacity-0 group-hover:bg-opacity-40 transition">
+                  <Camera className="w-7 h-7 text-white opacity-0 group-hover:opacity-100 transition mb-1" />
+                  <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition">
+                    {form.image ? 'Cambiar imagen' : 'Subir imagen'}
+                  </span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
+                {form.image && (
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, image: null }))}
@@ -253,15 +255,8 @@ export default function AdminProducts() {
                   >
                     <X className="w-4 h-4" />
                   </button>
-                </div>
-              ) : (
-                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition">
-                  <ImageIcon className="w-8 h-8 text-gray-300 mb-2" />
-                  <span className="text-sm text-gray-500 font-medium">Subir imagen</span>
-                  <span className="text-xs text-gray-400 mt-1">PNG, JPG hasta 5MB</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                </label>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -275,9 +270,9 @@ export default function AdminProducts() {
               </div>
             </div>
             <div>
-              <label className={labelClass}>Categoría *</label>
+              <label className={labelClass}>Centro de costo *</label>
               <select className={inputClass} value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}>
-                <option value="">Seleccionar categoría</option>
+                <option value="">Seleccionar centro de costo</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
