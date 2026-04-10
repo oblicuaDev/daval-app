@@ -1,8 +1,57 @@
-import { ClipboardCheck, CheckCircle2, XCircle, Package, Calendar, User, FileText } from 'lucide-react';
+import { ClipboardCheck, CheckCircle2, XCircle, Package, Calendar, User, FileText, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { STATUS_STYLES, formatCOP } from '../../data/mockData';
 import { useState } from 'react';
+
+function ConfirmApproveModal({ order, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-60">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="p-6 space-y-5">
+          {/* Icon */}
+          <div className="flex justify-center">
+            <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-yellow-600" />
+            </div>
+          </div>
+
+          {/* Text */}
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-bold text-gray-900">¿Estás seguro de aprobar este pedido?</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Al aprobarlo se generará una orden de compra a{' '}
+              <span className="font-semibold text-gray-800">Papelería Cartagena</span>.
+              Esta acción no se puede deshacer.
+            </p>
+            {order && (
+              <p className="text-xs font-mono text-gray-400 bg-gray-50 rounded-lg px-3 py-1.5 inline-block">
+                {order.id} · {formatCOP(order.total)}
+              </p>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Sí, aprobar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function OrderDetailModal({ order, clientName, onApprove, onReject, onClose }) {
   const total = order.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
@@ -76,7 +125,7 @@ function OrderDetailModal({ order, clientName, onApprove, onReject, onClose }) {
               Rechazar
             </button>
             <button
-              onClick={() => { onApprove(order.id); onClose(); }}
+              onClick={() => onApprove(order)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -92,9 +141,9 @@ function OrderDetailModal({ order, clientName, onApprove, onReject, onClose }) {
 export default function ClientApproveOrders() {
   const { currentUser, users } = useAuth();
   const { orders, updateOrder } = useApp();
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder]       = useState(null);
+  const [confirmOrder, setConfirmOrder]         = useState(null); // order pending confirm modal
 
-  // All client user IDs in the same company as the supervisor
   const companyClientIds = users
     .filter(u => u.role === 'client' && u.companyId === currentUser?.companyId)
     .map(u => u.id);
@@ -107,8 +156,14 @@ export default function ClientApproveOrders() {
     return users.find(u => u.id === clientId)?.name || '—';
   }
 
-  function handleApprove(orderId) {
-    updateOrder(orderId, { status: 'Pendiente' });
+  function requestApprove(order) {
+    setSelectedOrder(null); // close detail modal if open
+    setConfirmOrder(order);
+  }
+
+  function confirmApprove() {
+    updateOrder(confirmOrder.id, { status: 'Pendiente' });
+    setConfirmOrder(null);
   }
 
   function handleReject(orderId) {
@@ -153,12 +208,10 @@ export default function ClientApproveOrders() {
             const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
             return (
               <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4 flex items-center gap-4">
-                {/* Icon */}
                 <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Package className="w-5 h-5" />
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-mono text-sm font-bold text-gray-800">{order.id}</p>
@@ -177,12 +230,10 @@ export default function ClientApproveOrders() {
                   </div>
                 </div>
 
-                {/* Total */}
                 <div className="text-right flex-shrink-0 hidden sm:block">
                   <p className="text-base font-bold text-gray-900">{formatCOP(order.total)}</p>
                 </div>
 
-                {/* Quick actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => setSelectedOrder(order)}
@@ -198,7 +249,7 @@ export default function ClientApproveOrders() {
                     <XCircle className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleApprove(order.id)}
+                    onClick={() => requestApprove(order)}
                     className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition"
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -216,9 +267,18 @@ export default function ClientApproveOrders() {
         <OrderDetailModal
           order={selectedOrder}
           clientName={getClientName(selectedOrder.clientId)}
-          onApprove={handleApprove}
+          onApprove={requestApprove}
           onReject={handleReject}
           onClose={() => setSelectedOrder(null)}
+        />
+      )}
+
+      {/* Confirm approve modal */}
+      {confirmOrder && (
+        <ConfirmApproveModal
+          order={confirmOrder}
+          onConfirm={confirmApprove}
+          onCancel={() => setConfirmOrder(null)}
         />
       )}
     </div>
