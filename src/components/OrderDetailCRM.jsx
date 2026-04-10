@@ -12,6 +12,7 @@
  */
 
 import { useState, useRef } from 'react';
+import { useApp } from '../context/AppContext';
 import {
   ArrowLeft, Truck, CheckCircle2, Save, Send,
   Paperclip, FileText, File, ImageIcon, X,
@@ -70,9 +71,14 @@ export default function OrderDetailCRM({
   const [commentText, setCommentText] = useState('');
   const fileInputRef = useRef(null);
 
+  const { products } = useApp();
   const advisors = users.filter(u => u.role === 'advisor');
   const client   = users.find(u => u.id === order.clientId);
   const advisor  = users.find(u => u.id === order.advisorId);
+
+  function getSku(productId) {
+    return products.find(p => p.id === productId)?.sku || '—';
+  }
 
   const style    = STATUS_STYLES[status] || {};
   const comments    = order.comments    || [];
@@ -295,6 +301,7 @@ export default function OrderDetailCRM({
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">SKU</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Producto</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Unidad</th>
                     <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3">Cant.</th>
@@ -305,6 +312,7 @@ export default function OrderDetailCRM({
                 <tbody className="divide-y divide-gray-100">
                   {order.items.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-3 text-xs font-mono text-blue-600 whitespace-nowrap">{getSku(item.productId)}</td>
                       <td className="px-5 py-3 text-sm font-medium text-gray-800">{item.productName}</td>
                       <td className="px-5 py-3 text-sm text-gray-500">{item.unit}</td>
                       <td className="px-5 py-3 text-sm text-gray-700 text-center">{item.quantity}</td>
@@ -315,7 +323,7 @@ export default function OrderDetailCRM({
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 border-t-2 border-gray-200">
-                    <td colSpan={4} className="px-5 py-3 text-sm font-bold text-gray-700 text-right">Total</td>
+                    <td colSpan={5} className="px-5 py-3 text-sm font-bold text-gray-700 text-right">Total</td>
                     <td className="px-5 py-3 text-base font-bold text-blue-700 text-right">{formatCOP(order.total)}</td>
                   </tr>
                 </tfoot>
