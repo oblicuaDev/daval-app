@@ -2,17 +2,18 @@ import logo from '../../logo-cartagena.jpg';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Home, Package, FolderOpen, ListOrdered, Users, Building2,
-  UserCog, LogOut, Menu, X, ClipboardList,
+  UserCog, LogOut, Menu, X, ClipboardList, Briefcase,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/admin',                   label: 'Home',                      icon: Home,          end: true },
-  { to: '/admin/centros-de-costos', label: 'Centros de costos',         icon: FolderOpen },
+  { to: '/admin/centros-de-costos', label: 'Categorías',                 icon: FolderOpen },
   { to: '/admin/catalogo',          label: 'Catálogo de productos',     icon: Package },
   { to: '/admin/listas-precios',    label: 'Listas de precios',         icon: ListOrdered },
   { to: '/admin/pedidos',           label: 'Trabajar pedidos',          icon: ClipboardList },
+  { to: '/admin/empresas',          label: 'Empresas',                  icon: Briefcase },
   { to: '/admin/clientes',          label: 'Clientes y distribuidores', icon: Users },
   { to: '/admin/sedes',             label: 'Sedes',                     icon: Building2 },
   { to: '/admin/asesores',          label: 'Asesores',                  icon: UserCog },

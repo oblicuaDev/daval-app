@@ -1,4 +1,35 @@
 // =====================
+// COMPANIES (EMPRESAS CLIENTE)
+// =====================
+export const INITIAL_COMPANIES = [
+  {
+    id: 1,
+    name: 'Papelería El Centro',
+    nit: '900.123.456-7',
+    email: 'contacto@elcentro.com',
+    phone: '601-234-5678',
+    address: 'Cra 10 # 5-23, Bogotá',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Sede Principal', address: 'Cra 10 # 5-23, Bogotá', city: 'Bogotá', active: true },
+      { id: 2, name: 'Sucursal Chapinero', address: 'Cra 13 # 56-12, Bogotá', city: 'Bogotá', active: true },
+    ],
+  },
+  {
+    id: 2,
+    name: 'Distribuciones Norte S.A.S.',
+    nit: '800.987.654-3',
+    email: 'compras@disnorte.com',
+    phone: '604-456-7890',
+    address: 'Av. El Poblado # 10-50, Medellín',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Sede Medellín', address: 'Av. El Poblado # 10-50, Medellín', city: 'Medellín', active: true },
+    ],
+  },
+];
+
+// =====================
 // USERS
 // =====================
 export const INITIAL_USERS = [
@@ -22,15 +53,34 @@ export const INITIAL_USERS = [
   {
     id: 3,
     name: 'Papelería El Centro',
-    email: 'cliente@oblicua.com',
+    email: 'supervisor@oblicua.com',
     password: 'cliente123',
     role: 'client',
+    clientRole: 'supervisor',
     priceListId: 2,
+    companyId: 1,
+    sucursalId: 1,
     contactName: 'Lucía Gómez',
     phone: '311-234-5678',
     address: 'Cra 10 # 5-23, Bogotá',
     initials: 'PC',
     createdAt: '2024-01-15',
+  },
+  {
+    id: 4,
+    name: 'Comprador El Centro',
+    email: 'cliente@oblicua.com',
+    password: 'cliente123',
+    role: 'client',
+    clientRole: 'creador_pedidos',
+    priceListId: 2,
+    companyId: 1,
+    sucursalId: 1,
+    contactName: 'Pedro Sánchez',
+    phone: '311-987-6543',
+    address: 'Cra 10 # 5-23, Bogotá',
+    initials: 'CE',
+    createdAt: '2024-01-20',
   },
 ];
 
@@ -94,6 +144,7 @@ export const INITIAL_PRODUCTS = [
 export const ORDER_STATUSES = ['Pendiente', 'Validar disponibilidad', 'Alistamiento', 'En Ruta', 'Entregado'];
 
 export const STATUS_STYLES = {
+  'Pendiente por aprobar': { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200' },
   'Pendiente': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
   'Validar disponibilidad': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
   'Alistamiento': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
@@ -119,6 +170,13 @@ export const INITIAL_ORDERS = [
     ],
     notes: 'Entrega urgente solicitada',
     total: 150300,
+    comments: [
+      { id: 'c1', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido recibido y validado en bodega. Se procede con alistamiento.', createdAt: '2024-02-10T10:30:00' },
+      { id: 'c2', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido despachado con TCC. Guía #TCC-2024-88321.', createdAt: '2024-02-12T08:15:00' },
+    ],
+    attachments: [
+      { id: 'a1', name: 'remision-ORD-001.pdf', size: 142000, type: 'application/pdf', uploadedBy: 'Ana Martínez', uploadedAt: '2024-02-12T08:20:00' },
+    ],
   },
   {
     id: 'ORD-002',
@@ -134,6 +192,10 @@ export const INITIAL_ORDERS = [
     ],
     notes: '',
     total: 134100,
+    comments: [
+      { id: 'c3', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido alistado. Sale en ruta con Envia hoy.', createdAt: '2024-02-21T09:00:00' },
+    ],
+    attachments: [],
   },
   {
     id: 'ORD-003',
@@ -149,6 +211,8 @@ export const INITIAL_ORDERS = [
     ],
     notes: 'Pedir factura',
     total: 190800,
+    comments: [],
+    attachments: [],
   },
   {
     id: 'ORD-004',
@@ -165,6 +229,25 @@ export const INITIAL_ORDERS = [
     ],
     notes: 'Para reabastecimiento mensual',
     total: 338700,
+    comments: [],
+    attachments: [],
+  },
+  {
+    id: 'ORD-005',
+    clientId: 4,
+    advisorId: null,
+    status: 'Pendiente por aprobar',
+    createdAt: '2024-03-05',
+    updatedAt: '2024-03-05',
+    carrier: null,
+    items: [
+      { productId: 6, productName: 'Esfero Azul Caja x12', quantity: 10, unitPrice: 7560, unit: 'Caja' },
+      { productId: 17, productName: 'Folder Carta Paq x50', quantity: 4, unitPrice: 16650, unit: 'Paquete' },
+    ],
+    notes: 'Pedido de reposición mensual de escritura',
+    total: 142200,
+    comments: [],
+    attachments: [],
   },
 ];
 

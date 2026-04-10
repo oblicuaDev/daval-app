@@ -61,8 +61,8 @@ export default function AdvisorOrders() {
     return true;
   }
 
-  const myOrders = orders.filter(o => o.advisorId === currentUser?.id && inRange(o.createdAt));
-  const allMyOrders = orders.filter(o => o.advisorId === currentUser?.id); // for tab counts
+  const myOrders = orders.filter(o => o.advisorId === currentUser?.id && o.status !== 'Pendiente por aprobar' && inRange(o.createdAt));
+  const allMyOrders = orders.filter(o => o.advisorId === currentUser?.id && o.status !== 'Pendiente por aprobar'); // for tab counts
 
   const deliveredOrders = myOrders.filter(o => o.status === 'Entregado');
   const deliveredPct = myOrders.length > 0

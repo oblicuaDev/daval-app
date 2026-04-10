@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import OrderDetailCRM from '../../components/OrderDetailCRM';
 
-export default function AdvisorOrderDetail() {
+export default function AdminOrderDetail() {
   const { orderId } = useParams();
   const navigate    = useNavigate();
   const { orders, updateOrder } = useApp();
@@ -16,7 +16,7 @@ export default function AdvisorOrderDetail() {
       <div className="text-center py-20">
         <p className="text-gray-500">Pedido no encontrado</p>
         <button
-          onClick={() => navigate('/asesor')}
+          onClick={() => navigate('/admin/pedidos')}
           className="mt-4 text-blue-700 hover:text-blue-800 text-sm font-medium"
         >
           Volver a la lista
@@ -28,9 +28,9 @@ export default function AdvisorOrderDetail() {
   return (
     <OrderDetailCRM
       order={order}
-      onBack={() => navigate('/asesor')}
+      onBack={() => navigate('/admin/pedidos')}
       editable={true}
-      canAssign={false}
+      canAssign={true}
       currentUser={currentUser}
       users={users}
       updateOrder={updateOrder}

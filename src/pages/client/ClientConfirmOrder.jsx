@@ -13,7 +13,10 @@ export default function ClientConfirmOrder() {
   const [submitted, setSubmitted] = useState(null);
 
   function handleSubmit() {
-    const orderId = submitOrder(currentUser.id, null, notes);
+    const initialStatus = currentUser?.clientRole === 'creador_pedidos'
+      ? 'Pendiente por aprobar'
+      : 'Pendiente';
+    const orderId = submitOrder(currentUser.id, null, notes, initialStatus);
     setSubmitted(orderId);
   }
 
@@ -42,7 +45,11 @@ export default function ClientConfirmOrder() {
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Pedido enviado!</h2>
         <p className="text-gray-500 text-sm mb-1">Tu pedido fue registrado exitosamente.</p>
-        <p className="text-gray-400 text-sm mb-3">Un asesor atenderá tu pedido lo antes posible.</p>
+        <p className="text-gray-400 text-sm mb-3">
+          {currentUser?.clientRole === 'creador_pedidos'
+            ? 'Tu pedido está pendiente de aprobación por el supervisor de tu empresa.'
+            : 'Un asesor atenderá tu pedido lo antes posible.'}
+        </p>
         <p className="font-mono text-blue-700 font-bold text-xl mb-8">{submitted}</p>
         <div className="flex gap-3">
           <button

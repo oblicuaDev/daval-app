@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Phone, MapPin, Calendar } from 'lucide-react';
+import { Plus, X, Phone, MapPin, Calendar, Building, GitBranch } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 
@@ -20,12 +20,13 @@ function Modal({ title, onClose, children }) {
 }
 
 const EMPTY_FORM = {
-  name: '', contactName: '', email: '', password: '', phone: '', address: '', priceListId: 1,
+  name: '', contactName: '', email: '', password: '', phone: '', address: '',
+  priceListId: 1, companyId: '', sucursalId: '', clientRole: 'creador_pedidos',
 };
 
 export default function AdminClients() {
   const { users, setUsers } = useAuth();
-  const { priceLists } = useApp();
+  const { priceLists, companies } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [nextId, setNextId] = useState(10);
@@ -36,9 +37,27 @@ export default function AdminClients() {
     return priceLists.find(pl => pl.id === id)?.name || '—';
   }
 
+  function getCompanyName(id) {
+    return companies.find(c => c.id === id)?.name || '—';
+  }
+
+  function getSucursalName(companyId, sucursalId) {
+    const company = companies.find(c => c.id === companyId);
+    return company?.sucursales.find(s => s.id === sucursalId)?.name || '—';
+  }
+
+  // sucursales available for the selected company
+  const availableSucursales = form.companyId
+    ? (companies.find(c => c.id === Number(form.companyId))?.sucursales || [])
+    : [];
+
   function openCreate() {
     setForm(EMPTY_FORM);
     setShowModal(true);
+  }
+
+  function handleCompanyChange(e) {
+    setForm(f => ({ ...f, companyId: e.target.value, sucursalId: '' }));
   }
 
   function handleSave() {
@@ -52,6 +71,9 @@ export default function AdminClients() {
       phone: form.phone,
       address: form.address,
       priceListId: Number(form.priceListId),
+      companyId: form.companyId ? Number(form.companyId) : null,
+      sucursalId: form.sucursalId ? Number(form.sucursalId) : null,
+      clientRole: form.clientRole,
       role: 'client',
       initials: form.name.substring(0, 2).toUpperCase(),
       createdAt: new Date().toISOString().split('T')[0],
@@ -86,6 +108,8 @@ export default function AdminClients() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Cliente</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Empresa / Sucursal</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Rol</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Contacto</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Lista de Precios</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Dirección</th>
@@ -105,6 +129,31 @@ export default function AdminClients() {
                         <p className="text-xs text-gray-400">{client.email}</p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    {client.companyId ? (
+                      <div>
+                        <div className="flex items-center gap-1 text-sm text-gray-700">
+                          <Building className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          {getCompanyName(client.companyId)}
+                        </div>
+                        {client.sucursalId && (
+                          <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                            <GitBranch className="w-3 h-3 flex-shrink-0" />
+                            {getSucursalName(client.companyId, client.sucursalId)}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    {client.clientRole === 'supervisor' ? (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">Supervisor</span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">Creador de pedidos</span>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     <div className="text-sm text-gray-700">{client.contactName || '—'}</div>
@@ -138,7 +187,7 @@ export default function AdminClients() {
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-400">
                     No hay clientes registrados
                   </td>
                 </tr>
@@ -151,8 +200,41 @@ export default function AdminClients() {
       {showModal && (
         <Modal title="Nuevo Cliente" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
+            {/* Empresa + Sucursal */}
+            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Empresa y Sucursal</p>
+              <div>
+                <label className={labelClass}>Empresa *</label>
+                <select
+                  className={inputClass}
+                  value={form.companyId}
+                  onChange={handleCompanyChange}
+                >
+                  <option value="">— Seleccionar empresa —</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Sucursal</label>
+                <select
+                  className={inputClass}
+                  value={form.sucursalId}
+                  onChange={e => setForm(f => ({ ...f, sucursalId: e.target.value }))}
+                  disabled={!form.companyId || availableSucursales.length === 0}
+                >
+                  <option value="">— Seleccionar sucursal —</option>
+                  {availableSucursales.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} {s.city ? `— ${s.city}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* User data */}
             <div>
-              <label className={labelClass}>Nombre empresa *</label>
+              <label className={labelClass}>Nombre usuario / razón social *</label>
               <input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Papelería El Centro" />
             </div>
             <div>
@@ -182,6 +264,18 @@ export default function AdminClients() {
               <select className={inputClass} value={form.priceListId} onChange={e => setForm(f => ({ ...f, priceListId: e.target.value }))}>
                 {priceLists.map(pl => <option key={pl.id} value={pl.id}>{pl.name} — {pl.description}</option>)}
               </select>
+            </div>
+            <div>
+              <label className={labelClass}>Rol del usuario *</label>
+              <select className={inputClass} value={form.clientRole} onChange={e => setForm(f => ({ ...f, clientRole: e.target.value }))}>
+                <option value="creador_pedidos">Creador de pedidos</option>
+                <option value="supervisor">Supervisor</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                {form.clientRole === 'supervisor'
+                  ? 'Puede crear pedidos y aprobar los pedidos de creadores de su empresa.'
+                  : 'Crea pedidos que quedan pendientes de aprobación por un supervisor.'}
+              </p>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">

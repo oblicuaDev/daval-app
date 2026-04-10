@@ -5,6 +5,7 @@ import {
   INITIAL_PRICE_LISTS,
   INITIAL_BRANCHES,
   INITIAL_ORDERS,
+  INITIAL_COMPANIES,
 } from '../data/mockData';
 
 const AppContext = createContext(null);
@@ -15,6 +16,7 @@ export function AppProvider({ children }) {
   const [priceLists, setPriceLists] = useState(INITIAL_PRICE_LISTS);
   const [branches, setBranches] = useState(INITIAL_BRANCHES);
   const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [companies, setCompanies] = useState(INITIAL_COMPANIES);
   const [cart, setCart] = useState([]);
   const [nextOrderId, setNextOrderId] = useState(5);
 
@@ -46,14 +48,14 @@ export function AppProvider({ children }) {
     setCart([]);
   }
 
-  function submitOrder(clientId, advisorId, notes) {
+  function submitOrder(clientId, advisorId, notes, initialStatus = 'Pendiente') {
     const id = `ORD-00${nextOrderId}`;
     const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
     const newOrder = {
       id,
       clientId,
       advisorId,
-      status: 'Pendiente',
+      status: initialStatus,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       carrier: null,
@@ -87,6 +89,7 @@ export function AppProvider({ children }) {
       priceLists, setPriceLists,
       branches, setBranches,
       orders, setOrders,
+      companies, setCompanies,
       cart, cartTotal, cartCount,
       addToCart, updateCartItem, removeFromCart, clearCart, submitOrder,
       updateOrder,

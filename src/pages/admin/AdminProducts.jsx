@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Pencil, Eye, EyeOff, Upload, X, Filter, ImageIcon, Camera } from 'lucide-react';
+import { Plus, Search, Pencil, Eye, EyeOff, Upload, X, Filter, Camera, Link2 } from 'lucide-react';
 import productFallback from '../../product.webp';
 import { useApp } from '../../context/AppContext';
 import { formatCOP } from '../../data/mockData';
@@ -7,12 +7,13 @@ import { formatCOP } from '../../data/mockData';
 const EMPTY_FORM = {
   name: '', sku: '', categoryId: '', description: '',
   basePrice: '', stock: '', unit: 'Unidad', active: true, image: null,
+  complementaryIds: [],
 };
 
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -34,6 +35,7 @@ export default function AdminProducts() {
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [nextId, setNextId] = useState(21);
+  const [crossSearch, setCrossSearch] = useState('');
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
@@ -48,6 +50,7 @@ export default function AdminProducts() {
   function openCreate() {
     setEditProduct(null);
     setForm(EMPTY_FORM);
+    setCrossSearch('');
     setShowModal(true);
   }
 
@@ -63,7 +66,9 @@ export default function AdminProducts() {
       unit: product.unit,
       active: product.active,
       image: product.image || null,
+      complementaryIds: product.complementaryIds || [],
     });
+    setCrossSearch('');
     setShowModal(true);
   }
 
@@ -270,9 +275,9 @@ export default function AdminProducts() {
               </div>
             </div>
             <div>
-              <label className={labelClass}>Centro de costo *</label>
+              <label className={labelClass}>Categoría *</label>
               <select className={inputClass} value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}>
-                <option value="">Seleccionar centro de costo</option>
+                <option value="">Seleccionar categoría</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -296,6 +301,85 @@ export default function AdminProducts() {
                 </select>
               </div>
             </div>
+            {/* Complementary products (cross-selling) */}
+            <div>
+              <label className={labelClass + ' flex items-center gap-1.5'}>
+                <Link2 className="w-3.5 h-3.5 text-blue-500" />
+                Productos complementarios <span className="text-gray-400 font-normal text-xs">(cross-selling)</span>
+              </label>
+
+              {/* Selected chips */}
+              {form.complementaryIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {form.complementaryIds.map(id => {
+                    const p = products.find(pr => pr.id === id);
+                    if (!p) return null;
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 text-xs font-medium">
+                        {p.name}
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, complementaryIds: f.complementaryIds.filter(i => i !== id) }))}
+                          className="text-blue-400 hover:text-blue-700 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Search input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                <input
+                  className={inputClass + ' pl-8'}
+                  value={crossSearch}
+                  onChange={e => setCrossSearch(e.target.value)}
+                  placeholder="Buscar productos a relacionar..."
+                />
+              </div>
+
+              {/* Dropdown results */}
+              {crossSearch.trim() && (() => {
+                const q = crossSearch.toLowerCase();
+                const results = products.filter(p =>
+                  p.id !== editProduct?.id &&
+                  !form.complementaryIds.includes(p.id) &&
+                  (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+                ).slice(0, 6);
+                return results.length > 0 ? (
+                  <div className="border border-gray-200 rounded-lg mt-1 divide-y divide-gray-100 shadow-sm overflow-hidden">
+                    {results.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, complementaryIds: [...f.complementaryIds, p.id] }));
+                          setCrossSearch('');
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-blue-50 transition"
+                      >
+                        <img
+                          src={p.image || '/product.webp'}
+                          alt={p.name}
+                          className="w-7 h-7 rounded object-cover flex-shrink-0 border border-gray-100"
+                          onError={e => { e.target.src = '/product.webp'; }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1.5 px-1">Sin resultados</p>
+                );
+              })()}
+            </div>
+
             <div className="flex items-center gap-2">
               <input type="checkbox" id="active" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="rounded" />
               <label htmlFor="active" className="text-sm text-gray-700">Producto activo</label>

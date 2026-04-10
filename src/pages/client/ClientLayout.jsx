@@ -1,14 +1,22 @@
 import logo from '../../logo-cartagena.jpg';
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, X, Minus, Plus, Trash2, Search } from 'lucide-react';
+import { ShoppingCart, LogOut, X, Minus, Plus, Trash2, Search, ClipboardCheck, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { formatCOP } from '../../data/mockData';
 
 export default function ClientLayout() {
-  const { currentUser, logout } = useAuth();
-  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart } = useApp();
+  const { currentUser, logout, users } = useAuth();
+  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart, orders } = useApp();
+
+  const isSupervisor = currentUser?.clientRole === 'supervisor';
+  const companyClientIds = isSupervisor
+    ? users.filter(u => u.role === 'client' && u.companyId === currentUser.companyId).map(u => u.id)
+    : [];
+  const pendingApprovalCount = isSupervisor
+    ? orders.filter(o => o.status === 'Pendiente por aprobar' && companyClientIds.includes(o.clientId)).length
+    : 0;
   const navigate = useNavigate();
   const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -71,6 +79,33 @@ export default function ClientLayout() {
             >
               Mis Pedidos
             </NavLink>
+            {isSupervisor && (
+              <>
+                <NavLink
+                  to="/cliente/aprobar-pedidos"
+                  className={({ isActive }) =>
+                    `relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-yellow-400 text-blue-900' : 'bg-yellow-400 bg-opacity-20 text-yellow-300 hover:bg-yellow-400 hover:bg-opacity-30 hover:text-yellow-200'}`
+                  }
+                >
+                  <ClipboardCheck className="w-4 h-4" />
+                  Aprobar Pedidos
+                  {pendingApprovalCount > 0 && (
+                    <span className="ml-1 w-5 h-5 bg-rose-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {pendingApprovalCount}
+                    </span>
+                  )}
+                </NavLink>
+                <NavLink
+                  to="/cliente/administrar"
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-white bg-opacity-20 text-white' : 'text-blue-200 hover:text-white hover:bg-white hover:bg-opacity-10'}`
+                  }
+                >
+                  <Users className="w-4 h-4" />
+                  Administrar
+                </NavLink>
+              </>
+            )}
           </nav>
 
           {/* Cart */}
