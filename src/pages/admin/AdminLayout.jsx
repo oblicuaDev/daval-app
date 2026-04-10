@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { to: '/admin/listas-precios',    label: 'Listas de precios',         icon: ListOrdered },
   { to: '/admin/pedidos',           label: 'Trabajar pedidos',          icon: ClipboardList },
   { to: '/admin/empresas',          label: 'Empresas',                  icon: Briefcase },
-  { to: '/admin/clientes',          label: 'Clientes y distribuidores', icon: Users },
+  { to: '/admin/clientes',          label: 'Usuarios',                  icon: Users },
   { to: '/admin/sedes',             label: 'Sedes',                     icon: Building2 },
   { to: '/admin/asesores',          label: 'Asesores',                  icon: UserCog },
 ];
