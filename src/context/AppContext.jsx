@@ -22,7 +22,7 @@ export function AppProvider({ children }) {
   const [companies, setCompanies] = useState(INITIAL_COMPANIES);
   const [routes, setRoutes] = useState(INITIAL_ROUTES);
   const [cart, setCart] = useState([]);
-  const [nextOrderId, setNextOrderId] = useState(6);
+  const [nextOrderId, setNextOrderId] = useState(10);
 
   function addToCart(product, quantity, unitPrice) {
     setCart(prev => {
@@ -52,10 +52,21 @@ export function AppProvider({ children }) {
     setCart([]);
   }
 
-  function submitOrder(requestingUser, advisorId, notes, initialStatus = 'Pendiente') {
+  function loadCartFromItems(items = []) {
+    setCart(items.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      unit: item.unit,
+    })));
+  }
+
+  function submitOrder(requestingUser, advisorId, notes) {
     const user = typeof requestingUser === 'object' ? requestingUser : { id: requestingUser };
     const company = companies.find(c => c.id === user.companyId);
     const sucursal = company?.sucursales?.find(s => s.id === user.sucursalId);
+    const assignedAdvisorId = advisorId || sucursal?.advisorId || null;
     const id = `COT-00${nextOrderId}`;
     const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
     const newOrder = {
@@ -66,8 +77,8 @@ export function AppProvider({ children }) {
       companyId: user.companyId || null,
       sucursalId: user.sucursalId || null,
       sucursalName: sucursal?.name || '',
-      advisorId,
-      status: initialStatus,
+      advisorId: assignedAdvisorId,
+      siigoUrl: '',
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       carrier: null,
@@ -105,7 +116,7 @@ export function AppProvider({ children }) {
       companies, setCompanies,
       routes, setRoutes,
       cart, cartTotal, cartCount,
-      addToCart, updateCartItem, removeFromCart, clearCart, submitOrder,
+      addToCart, updateCartItem, removeFromCart, clearCart, loadCartFromItems, submitOrder,
       updateOrder,
     }}>
       {children}

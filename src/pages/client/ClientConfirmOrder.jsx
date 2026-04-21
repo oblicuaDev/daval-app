@@ -5,20 +5,21 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCOP } from '../../data/mockData';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { getClientRoute, getRouteCutoffStatus } from '../../utils/routeCutoff';
 
 export default function ClientConfirmOrder() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { cart, cartTotal, updateCartItem, removeFromCart, submitOrder } = useApp();
+  const { cart, cartTotal, updateCartItem, removeFromCart, submitOrder, companies, routes } = useApp();
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(null);
   const [cartItemToDelete, setCartItemToDelete] = useState(null);
+  const { route } = getClientRoute(currentUser, companies, routes);
+  const cutoffStatus = getRouteCutoffStatus(route);
 
   function handleSubmit() {
-    const initialStatus = currentUser?.clientRole === 'creador_cotizaciones'
-      ? 'Pendiente por aprobar'
-      : 'Pendiente';
-    const orderId = submitOrder(currentUser, null, notes, initialStatus);
+    if (!cutoffStatus.isOpen) return;
+    const orderId = submitOrder(currentUser, null, notes);
     setSubmitted(orderId);
   }
 
@@ -29,7 +30,7 @@ export default function ClientConfirmOrder() {
         <h2 className="text-xl font-bold text-gray-200 mb-2">Tu cotización está vacía</h2>
         <p className="text-gray-400 text-sm mb-6">Agrega productos desde el catálogo antes de confirmar.</p>
         <button
-          onClick={() => navigate('/cliente')}
+          onClick={() => navigate('/cliente/catalogo', { state: { showCatalogIntro: true } })}
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -47,11 +48,7 @@ export default function ClientConfirmOrder() {
         </div>
         <h2 className="text-2xl font-bold text-gray-100 mb-2">¡Cotización enviada!</h2>
         <p className="text-gray-400 text-sm mb-1">Tu cotización fue registrada exitosamente.</p>
-        <p className="text-gray-500 text-sm mb-3">
-          {currentUser?.clientRole === 'creador_cotizaciones'
-            ? 'Tu cotización está pendiente de aprobación por el supervisor de tu empresa.'
-            : 'Un asesor atenderá tu cotización lo antes posible.'}
-        </p>
+        <p className="text-gray-500 text-sm mb-3">Un asesor atenderá tu cotización lo antes posible.</p>
         <p className="font-mono text-blue-400 font-bold text-xl mb-8">{submitted}</p>
         <div className="flex gap-3">
           <button
@@ -62,7 +59,7 @@ export default function ClientConfirmOrder() {
             Ver mis cotizaciones
           </button>
           <button
-            onClick={() => navigate('/cliente')}
+            onClick={() => navigate('/cliente/catalogo')}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
           >
             <ShoppingCart className="w-4 h-4" />
@@ -78,7 +75,7 @@ export default function ClientConfirmOrder() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate('/cliente')}
+          onClick={() => navigate('/cliente/catalogo')}
           className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -158,9 +155,10 @@ export default function ClientConfirmOrder() {
       {/* Submit */}
       <button
         onClick={handleSubmit}
-        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-bold transition shadow-sm"
+        disabled={!cutoffStatus.isOpen}
+        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-bold transition shadow-sm disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
       >
-        Enviar mi cotización
+        {cutoffStatus.isOpen ? 'Enviar mi cotización' : 'Recepción cerrada para esta ruta'}
       </button>
 
       {cartItemToDelete && (

@@ -16,10 +16,10 @@ import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminRoutes from './pages/admin/AdminRoutes';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import ClientLayout from './pages/client/ClientLayout';
+import ClientStart from './pages/client/ClientStart';
 import ClientCatalog from './pages/client/ClientCatalog';
 import ClientOrders from './pages/client/ClientOrders';
 import ClientConfirmOrder from './pages/client/ClientConfirmOrder';
-import ClientApproveOrders from './pages/client/ClientApproveOrders';
 import ClientOrderDetail from './pages/client/ClientOrderDetail';
 import ClientManage from './pages/client/ClientManage';
 import AdvisorLayout from './pages/advisor/AdvisorLayout';
@@ -62,13 +62,14 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<ClientCatalog />} />
+            <Route index element={<ClientStart />} />
+            <Route path="catalogo" element={<ClientCatalog />} />
             <Route path="cotizaciones" element={<ClientOrders />} />
             <Route path="pedidos" element={<Navigate to="../cotizaciones" replace />} />
             <Route path="confirmar-cotizacion" element={<ClientConfirmOrder />} />
             <Route path="confirmar-pedido" element={<Navigate to="../confirmar-cotizacion" replace />} />
-            <Route path="aprobar-cotizaciones" element={<ClientApproveOrders />} />
-            <Route path="aprobar-pedidos" element={<Navigate to="../aprobar-cotizaciones" replace />} />
+            <Route path="aprobar-cotizaciones" element={<Navigate to="../cotizaciones" replace />} />
+            <Route path="aprobar-pedidos" element={<Navigate to="../cotizaciones" replace />} />
             <Route path="cotizaciones/:orderId" element={<ClientOrderDetail />} />
             <Route path="pedidos/:orderId" element={<ClientOrderDetail />} />
             <Route path="administrar" element={<ClientManage />} />

@@ -21,7 +21,7 @@ function Modal({ title, onClose, children }) {
 
 const EMPTY_FORM = {
   name: '', contactName: '', email: '', password: '', phone: '', address: '',
-  priceListId: 1, companyId: '', sucursalId: '', clientRole: 'creador_cotizaciones',
+  priceListId: 1, companyId: '', sucursalId: '',
 };
 
 export default function AdminClients() {
@@ -72,7 +72,6 @@ export default function AdminClients() {
       priceListId: Number(form.priceListId),
       companyId: form.companyId ? Number(form.companyId) : null,
       sucursalId: form.sucursalId ? Number(form.sucursalId) : null,
-      clientRole: form.clientRole,
       role: 'client',
       initials: form.name.substring(0, 2).toUpperCase(),
       createdAt: new Date().toISOString().split('T')[0],
@@ -108,7 +107,6 @@ export default function AdminClients() {
               <tr className="bg-gray-900 border-b border-gray-700">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Cliente</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Empresa / Sucursal</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Rol</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Contacto</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Lista de Precios</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Dirección</th>
@@ -148,13 +146,6 @@ export default function AdminClients() {
                     )}
                   </td>
                   <td className="px-5 py-4">
-                    {client.clientRole === 'supervisor' ? (
-                      <span className="text-xs bg-purple-950 text-purple-300 px-2 py-1 rounded-full font-medium">Supervisor</span>
-                    ) : (
-                      <span className="text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full font-medium">Creador de cotizaciones</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
                     <div className="text-sm text-gray-300">{client.contactName || '—'}</div>
                     {client.phone && (
                       <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
@@ -186,7 +177,7 @@ export default function AdminClients() {
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-gray-500">
                     No hay clientes registrados
                   </td>
                 </tr>
@@ -257,18 +248,6 @@ export default function AdminClients() {
               <select className={inputClass} value={form.priceListId} onChange={e => setForm(f => ({ ...f, priceListId: e.target.value }))}>
                 {priceLists.map(pl => <option key={pl.id} value={pl.id}>{pl.name} — {pl.description}</option>)}
               </select>
-            </div>
-            <div>
-              <label className={labelClass}>Rol del usuario *</label>
-              <select className={inputClass} value={form.clientRole} onChange={e => setForm(f => ({ ...f, clientRole: e.target.value }))}>
-                <option value="creador_cotizaciones">Creador de cotizaciones</option>
-                <option value="supervisor">Supervisor</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {form.clientRole === 'supervisor'
-                  ? 'Puede crear cotizaciones y aprobar las cotizaciones de creadores de su empresa.'
-                  : 'Crea cotizaciones que quedan pendientes de aprobación por un supervisor.'}
-              </p>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">

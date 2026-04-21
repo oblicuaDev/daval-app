@@ -11,6 +11,26 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function loadOblicuaCredits() {
+        var script = document.createElement('script');
+        script.src = 'https://lab.oblicua.co/credits/credits.js?v=' + Date.now();
+        script.async = true;
+        script.onload = function () {
+          try {
+            if (typeof window.setCredits === 'function') {
+              window.setCredits('#000000', 'Daval');
+            }
+          } catch (error) {
+            console.warn('Oblicua credits could not be initialized.', error);
+          }
+        };
+        script.onerror = function () {
+          console.warn('Oblicua credits script could not be loaded.');
+        };
+        document.head.appendChild(script);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

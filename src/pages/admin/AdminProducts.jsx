@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Plus, Search, Pencil, Eye, EyeOff, Upload, X, Filter, Camera, Link2 } from 'lucide-react';
 import productFallback from '../../product.webp';
 import { useApp } from '../../context/AppContext';
-import { formatCOP } from '../../data/mockData';
+import { formatCOP, PRODUCT_QUALITIES } from '../../data/mockData';
 
 const EMPTY_FORM = {
   name: '', sku: '', categoryId: '', description: '',
-  basePrice: '', stock: '', unit: 'Unidad', active: true, image: null,
+  basePrice: '', stock: '', unit: 'Unidad', quality: 'standard', active: true, image: null,
   complementaryIds: [],
 };
 
@@ -30,6 +30,7 @@ export default function AdminProducts() {
   const { products, setProducts, categories } = useApp();
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterQuality, setFilterQuality] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
@@ -40,11 +41,16 @@ export default function AdminProducts() {
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCategory ? p.categoryId === Number(filterCategory) : true;
-    return matchSearch && matchCat;
+    const matchQuality = filterQuality ? (p.quality || 'standard') === filterQuality : true;
+    return matchSearch && matchCat && matchQuality;
   });
 
   function getCategoryName(id) {
     return categories.find(c => c.id === id)?.name || '—';
+  }
+
+  function getQualityName(value) {
+    return PRODUCT_QUALITIES.find(q => q.value === value)?.label || 'Calidad estándar';
   }
 
   function openCreate() {
@@ -64,6 +70,7 @@ export default function AdminProducts() {
       basePrice: String(product.basePrice),
       stock: String(product.stock),
       unit: product.unit,
+      quality: product.quality || 'standard',
       active: product.active,
       image: product.image || null,
       complementaryIds: product.complementaryIds || [],
@@ -153,6 +160,18 @@ export default function AdminProducts() {
             ))}
           </select>
         </div>
+        <div className="relative">
+          <select
+            value={filterQuality}
+            onChange={e => setFilterQuality(e.target.value)}
+            className="px-3 pr-8 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100 appearance-none"
+          >
+            <option value="">Todas las calidades</option>
+            {PRODUCT_QUALITIES.map(q => (
+              <option key={q.value} value={q.value}>{q.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
@@ -165,6 +184,7 @@ export default function AdminProducts() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">SKU</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Nombre</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Categoría</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Calidad</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Precio Base</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Stock</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Unidad</th>
@@ -190,6 +210,11 @@ export default function AdminProducts() {
                   <td className="px-4 py-3">
                     <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
                       {getCategoryName(product.categoryId)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full font-medium">
+                      {getQualityName(product.quality)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-200">{formatCOP(product.basePrice)}</td>
@@ -222,7 +247,7 @@ export default function AdminProducts() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-500">
                     No se encontraron productos
                   </td>
                 </tr>
@@ -271,7 +296,7 @@ export default function AdminProducts() {
               </div>
               <div>
                 <label className={labelClass}>SKU *</label>
-                <input className={inputClass} value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="PAP-001" />
+                <input className={inputClass} value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="HER-001" />
               </div>
             </div>
             <div>
@@ -279,6 +304,12 @@ export default function AdminProducts() {
               <select className={inputClass} value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}>
                 <option value="">Seleccionar categoría</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Calidad de producto</label>
+              <select className={inputClass} value={form.quality} onChange={e => setForm(f => ({ ...f, quality: e.target.value }))}>
+                {PRODUCT_QUALITIES.map(q => <option key={q.value} value={q.value}>{q.label}</option>)}
               </select>
             </div>
             <div>
@@ -297,7 +328,7 @@ export default function AdminProducts() {
               <div>
                 <label className={labelClass}>Unidad</label>
                 <select className={inputClass} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
-                  {['Unidad', 'Resma', 'Caja', 'Paquete', 'Pliego', 'Set', 'Rollo'].map(u => <option key={u}>{u}</option>)}
+                  {['Unidad', 'Caja', 'Paquete', 'Bulto', 'Cuñete', 'Saco', 'Kg', 'Par', 'Rollo', 'Cartucho'].map(u => <option key={u}>{u}</option>)}
                 </select>
               </div>
             </div>
@@ -398,7 +429,7 @@ export default function AdminProducts() {
         <Modal title="Importar Productos desde Excel" onClose={() => setShowImport(false)}>
           <div className="space-y-4">
             <p className="text-sm text-gray-400">
-              Selecciona un archivo Excel (.xlsx) con el formato de productos. Las columnas deben ser: SKU, Nombre, Categoría, Descripción, Precio Base, Stock, Unidad.
+              Selecciona un archivo Excel (.xlsx) con el formato de productos. Las columnas deben ser: SKU, Nombre, Categoría, Calidad, Descripción, Precio Base, Stock, Unidad.
             </p>
             <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-blue-500 transition">
               <Upload className="w-10 h-10 text-gray-600 mx-auto mb-3" />

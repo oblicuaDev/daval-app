@@ -28,6 +28,7 @@ const DEFAULT_BOUNDS = {
 const EMPTY_FORM = {
   name: '',
   day: 'Lunes',
+  cutoffTime: '16:00',
   city: 'Bogotá',
   mapZone: 'Bogotá, Colombia',
   quadrantId: 'custom',
@@ -351,6 +352,7 @@ export default function AdminRoutes() {
       ...EMPTY_FORM,
       name: route.name,
       day: route.day,
+      cutoffTime: route.cutoffTime || EMPTY_FORM.cutoffTime,
       city: route.city || EMPTY_FORM.city,
       mapZone: route.mapZone || EMPTY_FORM.mapZone,
       quadrantId: route.quadrantId || 'custom',
@@ -368,7 +370,7 @@ export default function AdminRoutes() {
   }
 
   function handleSave() {
-    if (!form.name || !form.day || !form.bounds) return;
+    if (!form.name || !form.day || !form.cutoffTime || !form.bounds) return;
 
     if (editingRoute) {
       setRoutes(prev => prev.map(route =>
@@ -421,7 +423,7 @@ export default function AdminRoutes() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
                     <CalendarDays className="w-4 h-4 text-gray-500" />
-                    {route.day}
+                    {route.day} · Recibe hasta {route.cutoffTime || 'sin hora definida'}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -489,14 +491,31 @@ export default function AdminRoutes() {
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Ciudad</label>
+                  <label className={labelClass}>Hora máxima para cotizaciones *</label>
                   <input
+                    type="time"
                     className={inputClass}
-                    value={form.city}
-                    onChange={e => setForm(prev => ({ ...prev, city: e.target.value, mapZone: `${e.target.value}, Colombia` }))}
-                    placeholder="Bogotá"
+                    value={form.cutoffTime}
+                    onChange={e => setForm(prev => ({ ...prev, cutoffTime: e.target.value }))}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Ciudad</label>
+                <input
+                  className={inputClass}
+                  value={form.city}
+                  onChange={e => setForm(prev => ({ ...prev, city: e.target.value, mapZone: `${e.target.value}, Colombia` }))}
+                  placeholder="Bogotá"
+                />
+              </div>
+
+              <div className="rounded-xl border border-blue-900 bg-blue-950 px-4 py-3">
+                <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-1">Regla de recepción</p>
+                <p className="text-sm text-blue-100">
+                  Los clientes de esta ruta podrán montar cotizaciones hasta el día anterior a la ruta a las {form.cutoffTime || '00:00'}.
+                </p>
               </div>
 
               <div>
@@ -562,7 +581,7 @@ export default function AdminRoutes() {
                 <button
                   onClick={handleSave}
                   className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  disabled={!form.name || !form.day || !form.bounds}
+                  disabled={!form.name || !form.day || !form.cutoffTime || !form.bounds}
                 >
                   {editingRoute ? 'Guardar cambios' : 'Crear Ruta'}
                 </button>

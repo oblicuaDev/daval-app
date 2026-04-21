@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Package, Users, ShoppingCart, ClipboardList, CheckCircle, Box, CalendarDays, X } from 'lucide-react';
+import { Package, Users, Link2, ClipboardList, CheckCircle, Box, CalendarDays, X } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { STATUS_STYLES, formatCOP } from '../../data/mockData';
+import { formatCOP } from '../../data/mockData';
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -68,12 +68,11 @@ export default function AdminDashboard() {
   const filtered = orders.filter(o => inRange(o.createdAt));
 
   const clients       = users.filter(u => u.role === 'client');
-  const pendingOrders = filtered.filter(o => o.status === 'Pendiente').length;
-  const deliveredOrders = filtered.filter(o => o.status === 'Entregado');
-  const deliveredPct  = filtered.length > 0
-    ? Math.round((deliveredOrders.length / filtered.length) * 100)
+  const siigoLinkedOrders = filtered.filter(o => o.siigoUrl);
+  const siigoLinkedPct  = filtered.length > 0
+    ? Math.round((siigoLinkedOrders.length / filtered.length) * 100)
     : 0;
-  const deliveredUnits = deliveredOrders.reduce(
+  const quotedUnits = filtered.reduce(
     (sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0
   );
 
@@ -156,17 +155,17 @@ export default function AdminDashboard() {
       {/* Highlight cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <HighlightCard
-          label="Cotizaciones entregadas"
-          value={deliveredOrders.length}
-          sub={`${deliveredPct}% del total de cotizaciones`}
+          label="Cotizaciones en Siigo"
+          value={siigoLinkedOrders.length}
+          sub={`${siigoLinkedPct}% del total de cotizaciones`}
           icon={CheckCircle}
           bg="bg-green-600"
           text="text-white"
         />
         <HighlightCard
-          label="Productos entregados"
-          value={deliveredUnits}
-          sub="unidades en cotizaciones entregadas"
+          label="Productos cotizados"
+          value={quotedUnits}
+          sub="unidades en cotizaciones registradas"
           icon={Box}
           bg="bg-sky-600"
           text="text-white"
@@ -177,7 +176,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Productos"    value={products.length}  icon={Package}       color="bg-blue-600"    />
         <StatCard label="Total Clientes"     value={clients.length}   icon={Users}         color="bg-emerald-600" />
-        <StatCard label="Cotizaciones Pendientes" value={pendingOrders}    icon={ShoppingCart}  color="bg-yellow-600"  />
+        <StatCard label="Sin Link Siigo" value={filtered.length - siigoLinkedOrders.length} icon={Link2}  color="bg-yellow-600"  />
         <StatCard label="Total Cotizaciones"      value={filtered.length}  icon={ClipboardList} color="bg-purple-600"  />
       </div>
 
@@ -224,7 +223,7 @@ export default function AdminDashboard() {
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Sucursal</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Fecha</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Total</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Estado</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Siigo</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -234,9 +233,7 @@ export default function AdminDashboard() {
                       No hay cotizaciones en el periodo seleccionado
                     </td>
                   </tr>
-                ) : recentOrders.map(order => {
-                  const style = STATUS_STYLES[order.status] || {};
-                  return (
+                ) : recentOrders.map(order => (
                     <tr key={order.id} className="hover:bg-gray-700/50 transition-colors">
                       <td className="px-6 py-4 text-sm font-mono font-medium text-blue-400">{order.id}</td>
                       <td className="px-6 py-4 text-sm text-gray-300">{getRequesterName(order)}</td>
@@ -244,13 +241,12 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-sm text-gray-400">{order.createdAt}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-200">{formatCOP(order.total)}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
-                          {order.status}
+                        <span className={`text-xs font-medium ${order.siigoUrl ? 'text-blue-300' : 'text-gray-500'}`}>
+                          {order.siigoUrl ? 'Con link' : 'Sin link'}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
               </tbody>
             </table>
           </div>

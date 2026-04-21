@@ -1,15 +1,13 @@
-import { useState } from 'react';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { STATUS_STYLES, ORDER_STATUSES, formatCOP } from '../../data/mockData';
+import { formatCOP } from '../../data/mockData';
 
 export default function AdminOrders() {
   const { orders } = useApp();
   const { users }  = useAuth();
   const navigate   = useNavigate();
-  const [filterStatus, setFilterStatus] = useState('');
 
   function getName(id) {
     return users.find(u => u.id === id)?.name || '—';
@@ -19,11 +17,12 @@ export default function AdminOrders() {
     return order.requestedByName || getName(order.requestedById || order.clientId);
   }
 
-  const allStatuses = ['Pendiente por aprobar', ...ORDER_STATUSES];
-
   const filtered = orders
-    .filter(o => filterStatus ? o.status === filterStatus : true)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  function openDetail(orderId) {
+    navigate(`/admin/cotizaciones/${orderId}`);
+  }
 
   return (
     <div className="space-y-5">
@@ -31,19 +30,6 @@ export default function AdminOrders() {
         <div>
           <h2 className="text-2xl font-bold text-gray-100">Trabajar Cotizaciones</h2>
           <p className="text-sm text-gray-400 mt-1">{orders.length} cotizaciones en total</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="appearance-none border border-gray-600 rounded-lg pl-3 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100"
-            >
-              <option value="">Todos los estados</option>
-              {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
         </div>
       </div>
 
@@ -59,17 +45,28 @@ export default function AdminOrders() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Asesor asignado</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Fecha</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Monto</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Estado</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Siigo</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
               {filtered.map(order => {
-                const style = STATUS_STYLES[order.status] || {};
                 const commentCount = order.comments?.length || 0;
                 const attachCount  = order.attachments?.length || 0;
                 return (
-                  <tr key={order.id} className="hover:bg-gray-700/50 transition-colors">
+                  <tr
+                    key={order.id}
+                    onClick={() => openDetail(order.id)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openDetail(order.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    className="hover:bg-gray-700/50 focus:bg-gray-700/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors cursor-pointer"
+                    aria-label={`Ver detalle de la cotización ${order.id}`}
+                  >
                     <td className="px-5 py-4">
                       <div className="text-sm font-mono font-medium text-blue-400">{order.id}</div>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -99,13 +96,27 @@ export default function AdminOrders() {
                     <td className="px-5 py-4 text-sm text-gray-400">{order.createdAt}</td>
                     <td className="px-5 py-4 text-sm font-semibold text-gray-200">{formatCOP(order.total)}</td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
-                        {order.status}
-                      </span>
+                      {order.siigoUrl ? (
+                        <a
+                          href={order.siigoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={event => event.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-300 hover:text-blue-200 transition"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Ver en Siigo
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-500">Sin link</span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <button
-                        onClick={() => navigate(`/admin/cotizaciones/${order.id}`)}
+                        onClick={event => {
+                          event.stopPropagation();
+                          openDetail(order.id);
+                        }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-950 hover:bg-blue-900 rounded-lg transition"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -118,7 +129,7 @@ export default function AdminOrders() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-5 py-14 text-center text-sm text-gray-500">
-                    No hay cotizaciones con ese estado
+                    No hay cotizaciones registradas
                   </td>
                 </tr>
               )}

@@ -1,27 +1,39 @@
 import logo from '../../logo-daval.jpeg';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, X, Minus, Plus, Trash2, Search, ClipboardCheck, Users } from 'lucide-react';
+import { CalendarDays, LogOut, MessageCircle, Minus, Plus, Search, ShoppingCart, Trash2, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { formatCOP } from '../../data/mockData';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import {
+  formatRouteDateTime,
+  formatTimeRemaining,
+  getClientRoute,
+  getRouteCutoffStatus,
+} from '../../utils/routeCutoff';
+
+const DAVAL_WHATSAPP_NUMBER = '573112345678';
+const DAVAL_WHATSAPP_MESSAGE = 'Hola Distribuciones DAVAL, necesito ayuda con la plataforma de cotizaciones.';
+const DAVAL_WHATSAPP_URL = `https://wa.me/${DAVAL_WHATSAPP_NUMBER}?text=${encodeURIComponent(DAVAL_WHATSAPP_MESSAGE)}`;
 
 export default function ClientLayout() {
-  const { currentUser, logout, users } = useAuth();
-  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart, orders } = useApp();
-
-  const isSupervisor = currentUser?.clientRole === 'supervisor';
-  const companyClientIds = isSupervisor
-    ? users.filter(u => u.role === 'client' && u.companyId === currentUser.companyId).map(u => u.id)
-    : [];
-  const pendingApprovalCount = isSupervisor
-    ? orders.filter(o => o.status === 'Pendiente por aprobar' && companyClientIds.includes(o.clientId)).length
-    : 0;
+  const { currentUser, logout } = useAuth();
+  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart, companies, routes } = useApp();
   const navigate = useNavigate();
   const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [cartItemToDelete, setCartItemToDelete] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+
+  const { sucursal, route } = getClientRoute(currentUser, companies, routes);
+  const cutoffStatus = getRouteCutoffStatus(route, now);
+  const routeCountdown = formatTimeRemaining(cutoffStatus.routeDate, now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function handleLogout() {
     logout();
@@ -39,7 +51,7 @@ export default function ClientLayout() {
       <header className="bg-gray-800 border-b border-gray-700 text-gray-100 sticky top-0 z-30 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
           {/* Logo */}
-          <div className="flex items-center flex-shrink-0">
+          <NavLink to="/cliente" className="flex items-center flex-shrink-0" aria-label="Ir al inicio de cliente">
             <div className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1">
               <img
                 src={logo}
@@ -47,7 +59,7 @@ export default function ClientLayout() {
                 className="h-8 w-auto object-contain"
               />
             </div>
-          </div>
+          </NavLink>
 
           {/* Search */}
           <div className="flex-1 max-w-md mx-4">
@@ -71,7 +83,7 @@ export default function ClientLayout() {
                 `px-3 py-1.5 rounded-lg text-sm font-medium transition ${isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`
               }
             >
-              Catálogo
+              Inicio
             </NavLink>
             <NavLink
               to="/cliente/cotizaciones"
@@ -81,33 +93,15 @@ export default function ClientLayout() {
             >
               Mis Cotizaciones
             </NavLink>
-            {isSupervisor && (
-              <>
-                <NavLink
-                  to="/cliente/aprobar-cotizaciones"
-                  className={({ isActive }) =>
-                    `relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-yellow-500 text-gray-900' : 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'}`
-                  }
-                >
-                  <ClipboardCheck className="w-4 h-4" />
-                  Aprobar Cotizaciones
-                  {pendingApprovalCount > 0 && (
-                    <span className="ml-1 w-5 h-5 bg-rose-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {pendingApprovalCount}
-                    </span>
-                  )}
-                </NavLink>
-                <NavLink
-                  to="/cliente/administrar"
-                  className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`
-                  }
-                >
-                  <Users className="w-4 h-4" />
-                  Administrar
-                </NavLink>
-              </>
-            )}
+            <NavLink
+              to="/cliente/administrar"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`
+              }
+            >
+              <Users className="w-4 h-4" />
+              Administrar
+            </NavLink>
           </nav>
 
           {/* Cart */}
@@ -136,10 +130,42 @@ export default function ClientLayout() {
         </div>
       </header>
 
+      <div className={`border-b ${cutoffStatus.missingRoute ? 'bg-amber-950 border-amber-900' : cutoffStatus.isOpen ? 'bg-blue-950 border-blue-900' : 'bg-red-950 border-red-900'}`}>
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <CalendarDays className={`w-5 h-5 mt-0.5 flex-shrink-0 ${cutoffStatus.missingRoute ? 'text-amber-300' : cutoffStatus.isOpen ? 'text-blue-300' : 'text-red-300'}`} />
+            <div>
+              <p className={`text-sm font-semibold ${cutoffStatus.missingRoute ? 'text-amber-100' : cutoffStatus.isOpen ? 'text-blue-100' : 'text-red-100'}`}>
+                {route ? `Queda ${routeCountdown} para tu siguiente ruta.` : 'Ruta pendiente de asignación.'}
+              </p>
+              <p className={`text-xs mt-0.5 ${cutoffStatus.missingRoute ? 'text-amber-200' : cutoffStatus.isOpen ? 'text-blue-200' : 'text-red-200'}`}>
+                {route ? `${route.name} · ${sucursal?.name || 'Sucursal asignada'} · ${cutoffStatus.message}` : cutoffStatus.message}
+              </p>
+            </div>
+          </div>
+          {!cutoffStatus.isOpen && cutoffStatus.nextOpenDate && (
+            <span className="text-xs font-semibold text-red-100 bg-red-900/70 border border-red-800 rounded-full px-3 py-1">
+              Reabre: {formatRouteDateTime(cutoffStatus.nextOpenDate)}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         <Outlet context={{ search }} />
       </main>
+
+      <a
+        href={DAVAL_WHATSAPP_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-2 rounded-full bg-green-600 hover:bg-green-500 text-white shadow-xl shadow-black/30 border border-green-400/40 px-4 py-3 text-sm font-bold transition"
+        aria-label="Abrir WhatsApp de Distribuciones DAVAL"
+      >
+        <MessageCircle className="w-5 h-5" />
+        ¿Necesitas ayuda?
+      </a>
 
       {/* Cart Slide-Over */}
       {cartOpen && (

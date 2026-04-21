@@ -1,12 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Package, FileText, Paperclip, MessageSquare,
-  File, FileText as FilePdf, ImageIcon, Download, User, Calendar, Truck,
+  File, FileText as FilePdf, ImageIcon, Download, User, Calendar, ExternalLink,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 
-import { STATUS_STYLES, formatCOP } from '../../data/mockData';
+import { formatCOP } from '../../data/mockData';
 
 function fileIcon(type = '') {
   if (type.startsWith('image/')) return <ImageIcon className="w-4 h-4 text-blue-400" />;
@@ -48,7 +48,6 @@ export default function ClientOrderDetail() {
   }
 
   const order    = orders.find(o => o.id === orderId);
-  const style    = order ? (STATUS_STYLES[order.status] || {}) : {};
   const requestedBy = order ? users.find(u => u.id === (order.requestedById || order.clientId)) : null;
   const advisor  = order ? users.find(u => u.id === order.advisorId) : null;
   const comments    = order?.comments    || [];
@@ -86,9 +85,6 @@ export default function ClientOrderDetail() {
               <div>
                 <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <h2 className="text-2xl font-bold text-gray-100 font-mono">{order.id}</h2>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${style.bg} ${style.text} ${style.border}`}>
-                    {order.status}
-                  </span>
                 </div>
                 <div className="space-y-1 text-sm text-gray-400">
                   <p className="flex items-center gap-1.5">
@@ -109,10 +105,10 @@ export default function ClientOrderDetail() {
                       Asesor: <span className="font-medium text-gray-300">{advisor.name}</span>
                     </p>
                   )}
-                  {order.carrier && (
+                  {order.siigoUrl && (
                     <p className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5" />
-                      Transportador: <span className="font-medium text-gray-300">{order.carrier}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Siigo: <a href={order.siigoUrl} target="_blank" rel="noreferrer" className="font-medium text-blue-300 hover:text-blue-200 transition">Ver cotización</a>
                     </p>
                   )}
                 </div>
@@ -247,10 +243,12 @@ export default function ClientOrderDetail() {
           <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-5 space-y-3">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Resumen</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Estado</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style.bg} ${style.text}`}>{order.status}</span>
-              </div>
+              {order.siigoUrl && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Siigo</span>
+                  <a href={order.siigoUrl} target="_blank" rel="noreferrer" className="font-medium text-blue-300 hover:text-blue-200 transition">Ver</a>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-500">Items</span>
                 <span className="font-medium text-gray-300">{order.items.length}</span>

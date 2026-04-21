@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -19,23 +18,18 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-const EMPTY_FORM = { name: '', email: '', password: '', branchId: '' };
+const EMPTY_FORM = { name: '', email: '', password: '' };
 
 export default function AdminUsers() {
   const { users, setUsers } = useAuth();
-  const { branches } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [nextId, setNextId] = useState(20);
 
   const advisors = users.filter(u => u.role === 'advisor');
 
-  function getBranchName(id) {
-    return branches.find(b => b.id === id)?.name || '—';
-  }
-
   function openCreate() {
-    setForm({ ...EMPTY_FORM, branchId: branches[0]?.id || '' });
+    setForm(EMPTY_FORM);
     setShowModal(true);
   }
 
@@ -47,7 +41,6 @@ export default function AdminUsers() {
       email: form.email,
       password: form.password,
       role: 'advisor',
-      branchId: Number(form.branchId),
       initials: form.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
     };
     setUsers(prev => [...prev, newAdvisor]);
@@ -81,7 +74,6 @@ export default function AdminUsers() {
               <tr className="bg-gray-900 border-b border-gray-700">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Asesor</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Email</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Sede</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Estado</th>
               </tr>
             </thead>
@@ -98,11 +90,6 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-5 py-4 text-sm text-gray-400">{advisor.email}</td>
                   <td className="px-5 py-4">
-                    <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
-                      {getBranchName(advisor.branchId)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
                     <span className="text-xs bg-green-950 text-green-400 px-2 py-1 rounded-full font-medium">
                       Activo
                     </span>
@@ -111,7 +98,7 @@ export default function AdminUsers() {
               ))}
               {advisors.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={3} className="px-5 py-10 text-center text-sm text-gray-500">
                     No hay asesores registrados
                   </td>
                 </tr>
@@ -135,12 +122,6 @@ export default function AdminUsers() {
             <div>
               <label className={labelClass}>Contraseña *</label>
               <input className={inputClass} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
-            </div>
-            <div>
-              <label className={labelClass}>Sede asignada</label>
-              <select className={inputClass} value={form.branchId} onChange={e => setForm(f => ({ ...f, branchId: e.target.value }))}>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">

@@ -2,14 +2,10 @@ import logo from '../../logo-daval.jpeg';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
 
 export default function AdvisorLayout() {
   const { currentUser, logout } = useAuth();
-  const { branches } = useApp();
   const navigate = useNavigate();
-
-  const branch = branches.find(b => b.id === currentUser?.branchId);
 
   function handleLogout() {
     logout();
@@ -30,7 +26,6 @@ export default function AdvisorLayout() {
                 className="h-8 w-auto object-contain"
               />
             </div>
-            {branch && <span className="text-gray-400 text-xs hidden sm:block">{branch.name}</span>}
           </div>
 
           {/* Nav */}

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, ClipboardList, CheckCircle, Box, CalendarDays, X } from 'lucide-react';
+import { Eye, ClipboardList, Link2, Box, CalendarDays, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { STATUS_STYLES, formatCOP } from '../../data/mockData';
+import { formatCOP } from '../../data/mockData';
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -19,15 +19,6 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 const inputCls = 'border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100';
-
-const FILTER_TABS = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Pendiente', value: 'Pendiente' },
-  { label: 'En proceso', value: 'process' },
-  { label: 'Entregado', value: 'Entregado' },
-];
-
-const IN_PROCESS_STATUSES = ['Validar disponibilidad', 'Alistamiento', 'En Ruta'];
 
 function HighlightCard({ label, value, sub, icon: Icon, bg, text }) {
   return (
@@ -48,7 +39,6 @@ export default function AdvisorOrders() {
   const { orders } = useApp();
   const { currentUser, users } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('all');
   const [dateFrom, setDateFrom]   = useState('');
   const [dateTo, setDateTo]       = useState('');
 
@@ -61,14 +51,12 @@ export default function AdvisorOrders() {
     return true;
   }
 
-  const myOrders = orders.filter(o => o.advisorId === currentUser?.id && o.status !== 'Pendiente por aprobar' && inRange(o.createdAt));
-  const allMyOrders = orders.filter(o => o.advisorId === currentUser?.id && o.status !== 'Pendiente por aprobar'); // for tab counts
-
-  const deliveredOrders = myOrders.filter(o => o.status === 'Entregado');
-  const deliveredPct = myOrders.length > 0
-    ? Math.round((deliveredOrders.length / myOrders.length) * 100)
+  const myOrders = orders.filter(o => o.advisorId === currentUser?.id && inRange(o.createdAt));
+  const siigoLinkedOrders = myOrders.filter(o => o.siigoUrl);
+  const siigoLinkedPct = myOrders.length > 0
+    ? Math.round((siigoLinkedOrders.length / myOrders.length) * 100)
     : 0;
-  const deliveredUnits = deliveredOrders.reduce(
+  const quotedUnits = myOrders.reduce(
     (sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0
   );
 
@@ -91,11 +79,7 @@ export default function AdvisorOrders() {
   });
   const chartData = MONTHS.map((name, i) => ({ name, total: monthlyMap[i] }));
 
-  const filtered = myOrders.filter(order => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'process') return IN_PROCESS_STATUSES.includes(order.status);
-    return order.status === activeTab;
-  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const filtered = [...myOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   function getClientName(clientId) {
     return users.find(u => u.id === clientId)?.name || '—';
@@ -141,51 +125,21 @@ export default function AdvisorOrders() {
       {/* Highlight cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <HighlightCard
-          label="Cotizaciones entregadas"
-          value={deliveredOrders.length}
-          sub={`${deliveredPct}% del total de cotizaciones`}
-          icon={CheckCircle}
+          label="Cotizaciones en Siigo"
+          value={siigoLinkedOrders.length}
+          sub={`${siigoLinkedPct}% del total de cotizaciones`}
+          icon={Link2}
           bg="bg-green-500"
           text="text-white"
         />
         <HighlightCard
-          label="Productos entregados"
-          value={deliveredUnits}
-          sub="unidades en cotizaciones entregadas"
+          label="Productos cotizados"
+          value={quotedUnits}
+          sub="unidades en cotizaciones asignadas"
           icon={Box}
           bg="bg-sky-400"
           text="text-white"
         />
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex gap-1 bg-gray-800 border border-gray-700 rounded-xl p-1 w-fit">
-        {FILTER_TABS.map(tab => {
-          const count = tab.value === 'all'
-            ? myOrders.length
-            : tab.value === 'process'
-            ? myOrders.filter(o => IN_PROCESS_STATUSES.includes(o.status)).length
-            : myOrders.filter(o => o.status === tab.value).length;
-
-          return (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-                activeTab === tab.value
-                  ? 'bg-gray-700 text-blue-300 shadow-sm'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              {tab.label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                activeTab === tab.value ? 'bg-blue-950 text-blue-300' : 'bg-gray-700 text-gray-400'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
@@ -199,14 +153,12 @@ export default function AdvisorOrders() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Fecha</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Items</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Total</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Estado</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Siigo</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {filtered.map(order => {
-                const style = STATUS_STYLES[order.status] || {};
-                return (
+              {filtered.map(order => (
                   <tr key={order.id} className="hover:bg-gray-700/50 transition-colors">
                     <td className="px-5 py-4 text-sm font-mono font-medium text-blue-400">{order.id}</td>
                     <td className="px-5 py-4 text-sm text-gray-300">{getRequesterName(order)}</td>
@@ -215,8 +167,8 @@ export default function AdvisorOrders() {
                     <td className="px-5 py-4 text-sm text-gray-400">{order.items.length}</td>
                     <td className="px-5 py-4 text-sm font-medium text-gray-100">{formatCOP(order.total)}</td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
-                        {order.status}
+                      <span className={`text-xs font-medium ${order.siigoUrl ? 'text-blue-300' : 'text-gray-500'}`}>
+                        {order.siigoUrl ? 'Con link' : 'Sin link'}
                       </span>
                     </td>
                     <td className="px-5 py-4">
@@ -229,13 +181,12 @@ export default function AdvisorOrders() {
                       </button>
                     </td>
                   </tr>
-                );
-              })}
+                ))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center">
                     <ClipboardList className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-sm text-gray-400">No hay cotizaciones en esta categoría</p>
+                    <p className="text-sm text-gray-400">No hay cotizaciones asignadas</p>
                   </td>
                 </tr>
               )}

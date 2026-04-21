@@ -20,8 +20,8 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-const EMPTY_USER_FORM  = { name: '', email: '', password: '', sucursalId: '', clientRole: 'creador_cotizaciones' };
-const EMPTY_SUC_FORM   = { name: '', city: '', address: '', routeId: '', advisorId: '' };
+const EMPTY_USER_FORM  = { name: '', email: '', password: '', sucursalId: '' };
+const EMPTY_SUC_FORM   = { name: '', city: '', address: '', advisorId: '' };
 
 export default function ClientManage() {
   const { currentUser, users, setUsers } = useAuth();
@@ -46,6 +46,9 @@ export default function ClientManage() {
 
   const companyUsers = users.filter(
     u => u.role === 'client' && u.companyId === currentUser?.companyId && u.id !== currentUser?.id
+  );
+  const allCompanyUsers = users.filter(
+    u => u.role === 'client' && u.companyId === currentUser?.companyId
   );
 
   const sucursales = company?.sucursales || [];
@@ -77,7 +80,6 @@ export default function ClientManage() {
       email:      user.email,
       password:   user.password,
       sucursalId: user.sucursalId ? String(user.sucursalId) : '',
-      clientRole: user.clientRole || 'creador_cotizaciones',
     });
     setShowPwd(false);
     setShowUserModal(true);
@@ -89,8 +91,7 @@ export default function ClientManage() {
       setUsers(prev => prev.map(u =>
         u.id === editingUser.id
           ? { ...u, name: userForm.name, email: userForm.email, password: userForm.password,
-              sucursalId: userForm.sucursalId ? Number(userForm.sucursalId) : null,
-              clientRole: userForm.clientRole }
+              sucursalId: userForm.sucursalId ? Number(userForm.sucursalId) : null }
           : u
       ));
     } else {
@@ -100,7 +101,6 @@ export default function ClientManage() {
         email:       userForm.email,
         password:    userForm.password,
         role:        'client',
-        clientRole:  userForm.clientRole,
         companyId:   currentUser.companyId,
         sucursalId:  userForm.sucursalId ? Number(userForm.sucursalId) : null,
         priceListId: currentUser.priceListId,
@@ -114,6 +114,8 @@ export default function ClientManage() {
   }
 
   function handleDeleteUser(id) {
+    if (id === currentUser?.id) return;
+    if (allCompanyUsers.length <= 1) return;
     setUsers(prev => prev.filter(u => u.id !== id));
   }
 
@@ -129,7 +131,6 @@ export default function ClientManage() {
       name: suc.name,
       city: suc.city || '',
       address: suc.address || '',
-      routeId: suc.routeId ? String(suc.routeId) : '',
       advisorId: suc.advisorId ? String(suc.advisorId) : '',
     });
     setShowSucModal(true);
@@ -139,7 +140,6 @@ export default function ClientManage() {
     if (!sucForm.name) return;
     const payload = {
       ...sucForm,
-      routeId: sucForm.routeId ? Number(sucForm.routeId) : null,
       advisorId: sucForm.advisorId ? Number(sucForm.advisorId) : null,
     };
     setCompanies(prev => prev.map(c => {
@@ -155,6 +155,7 @@ export default function ClientManage() {
   }
 
   function handleDeleteSuc(id) {
+    if (sucursales.length <= 1) return;
     setCompanies(prev => prev.map(c =>
       c.id === currentUser.companyId
         ? { ...c, sucursales: c.sucursales.filter(s => s.id !== id) }
@@ -171,6 +172,31 @@ export default function ClientManage() {
       handleDeleteSuc(confirmDelete.id);
     }
     setConfirmDelete(null);
+  }
+
+  function requestDeleteUser(user) {
+    if (user.id === currentUser?.id) return;
+    if (allCompanyUsers.length <= 1) {
+      setConfirmDelete({
+        type: 'blocked',
+        title: 'No se puede eliminar el usuario',
+        message: 'La empresa debe conservar al menos un usuario activo para acceder a la plataforma.',
+      });
+      return;
+    }
+    setConfirmDelete({ type: 'user', id: user.id, label: user.name });
+  }
+
+  function requestDeleteSucursal(suc) {
+    if (sucursales.length <= 1) {
+      setConfirmDelete({
+        type: 'blocked',
+        title: 'No se puede eliminar la sucursal',
+        message: 'La empresa debe conservar al menos una sucursal para solicitar cotizaciones y mantener su relación de ruta.',
+      });
+      return;
+    }
+    setConfirmDelete({ type: 'sucursal', id: suc.id, label: suc.name });
   }
 
   if (!company) {
@@ -198,7 +224,7 @@ export default function ClientManage() {
           }`}
         >
           <Users className="w-4 h-4" />
-          Usuarios ({companyUsers.length})
+          Usuarios ({allCompanyUsers.length})
         </button>
         <button
           onClick={() => setTab('sucursales')}
@@ -244,13 +270,6 @@ export default function ClientManage() {
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      user.clientRole === 'supervisor'
-                        ? 'bg-purple-950 text-purple-300'
-                        : 'bg-gray-700 text-gray-400'
-                    }`}>
-                      {user.clientRole === 'supervisor' ? 'Supervisor' : 'Creador de cotizaciones'}
-                    </span>
                     {user.sucursalId && (
                       <span className="text-xs text-gray-400 bg-gray-700 border border-gray-600 px-2 py-0.5 rounded-full">
                         {getSucursalName(user.sucursalId)}
@@ -263,8 +282,10 @@ export default function ClientManage() {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => setConfirmDelete({ type: 'user', id: user.id, label: user.name })}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition"
+                      onClick={() => requestDeleteUser(user)}
+                      disabled={allCompanyUsers.length <= 1}
+                      title={allCompanyUsers.length <= 1 ? 'La empresa debe conservar al menos un usuario' : 'Eliminar usuario'}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -329,8 +350,10 @@ export default function ClientManage() {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => setConfirmDelete({ type: 'sucursal', id: suc.id, label: suc.name })}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition"
+                      onClick={() => requestDeleteSucursal(suc)}
+                      disabled={sucursales.length <= 1}
+                      title={sucursales.length <= 1 ? 'La empresa debe conservar al menos una sucursal' : 'Eliminar sucursal'}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -400,22 +423,6 @@ export default function ClientManage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className={lblCls}>Rol</label>
-              <select
-                className={inputCls}
-                value={userForm.clientRole}
-                onChange={e => setUserForm(f => ({ ...f, clientRole: e.target.value }))}
-              >
-                <option value="creador_cotizaciones">Creador de cotizaciones</option>
-                <option value="supervisor">Supervisor</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {userForm.clientRole === 'supervisor'
-                  ? 'Puede crear cotizaciones y aprobar las cotizaciones de creadores de la empresa.'
-                  : 'Crea cotizaciones que quedan pendientes de aprobación por un supervisor.'}
-              </p>
-            </div>
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowUserModal(false)}
@@ -470,16 +477,12 @@ export default function ClientManage() {
             </div>
             <div>
               <label className={lblCls}>Ruta relacionada</label>
-              <select
-                className={inputCls}
-                value={sucForm.routeId}
-                onChange={e => setSucForm(f => ({ ...f, routeId: e.target.value }))}
-              >
-                <option value="">Sin ruta asignada</option>
-                {routes.map(route => (
-                  <option key={route.id} value={route.id}>{route.name} · {route.day}</option>
-                ))}
-              </select>
+              <div className="w-full border border-gray-700 rounded-lg px-3 py-2 text-sm bg-gray-900 text-gray-300">
+                {editingSuc ? getRouteName(editingSuc.routeId) : 'Sin ruta asignada'}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                La ruta es asignada por Distribuciones DAVAL.
+              </p>
             </div>
             <div>
               <label className={lblCls}>Asesor asignado</label>
@@ -514,14 +517,15 @@ export default function ClientManage() {
 
       {confirmDelete && (
         <ConfirmDialog
-          title={confirmDelete.type === 'user' ? 'Eliminar usuario' : 'Eliminar sucursal'}
+          title={confirmDelete.title || (confirmDelete.type === 'user' ? 'Eliminar usuario' : 'Eliminar sucursal')}
           message={
-            confirmDelete.type === 'user'
+            confirmDelete.message ||
+            (confirmDelete.type === 'user'
               ? `Confirma que deseas eliminar el usuario "${confirmDelete.label}".`
-              : `Confirma que deseas eliminar la sucursal "${confirmDelete.label}".`
+              : `Confirma que deseas eliminar la sucursal "${confirmDelete.label}".`)
           }
           onCancel={() => setConfirmDelete(null)}
-          onConfirm={confirmDeleteAction}
+          onConfirm={confirmDelete.type === 'blocked' ? () => setConfirmDelete(null) : confirmDeleteAction}
         />
       )}
     </div>
