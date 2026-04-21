@@ -6,6 +6,8 @@ import {
   INITIAL_BRANCHES,
   INITIAL_ORDERS,
   INITIAL_COMPANIES,
+  INITIAL_ROUTES,
+  INITIAL_PROMOTIONS,
 } from '../data/mockData';
 
 const AppContext = createContext(null);
@@ -14,11 +16,13 @@ export function AppProvider({ children }) {
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [priceLists, setPriceLists] = useState(INITIAL_PRICE_LISTS);
+  const [promotions, setPromotions] = useState(INITIAL_PROMOTIONS);
   const [branches, setBranches] = useState(INITIAL_BRANCHES);
   const [orders, setOrders] = useState(INITIAL_ORDERS);
   const [companies, setCompanies] = useState(INITIAL_COMPANIES);
+  const [routes, setRoutes] = useState(INITIAL_ROUTES);
   const [cart, setCart] = useState([]);
-  const [nextOrderId, setNextOrderId] = useState(5);
+  const [nextOrderId, setNextOrderId] = useState(6);
 
   function addToCart(product, quantity, unitPrice) {
     setCart(prev => {
@@ -48,12 +52,20 @@ export function AppProvider({ children }) {
     setCart([]);
   }
 
-  function submitOrder(clientId, advisorId, notes, initialStatus = 'Pendiente') {
-    const id = `ORD-00${nextOrderId}`;
+  function submitOrder(requestingUser, advisorId, notes, initialStatus = 'Pendiente') {
+    const user = typeof requestingUser === 'object' ? requestingUser : { id: requestingUser };
+    const company = companies.find(c => c.id === user.companyId);
+    const sucursal = company?.sucursales?.find(s => s.id === user.sucursalId);
+    const id = `COT-00${nextOrderId}`;
     const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
     const newOrder = {
       id,
-      clientId,
+      clientId: user.id,
+      requestedById: user.id,
+      requestedByName: user.name || '',
+      companyId: user.companyId || null,
+      sucursalId: user.sucursalId || null,
+      sucursalName: sucursal?.name || '',
       advisorId,
       status: initialStatus,
       createdAt: new Date().toISOString().split('T')[0],
@@ -87,9 +99,11 @@ export function AppProvider({ children }) {
       products, setProducts,
       categories, setCategories,
       priceLists, setPriceLists,
+      promotions, setPromotions,
       branches, setBranches,
       orders, setOrders,
       companies, setCompanies,
+      routes, setRoutes,
       cart, cartTotal, cartCount,
       addToCart, updateCartItem, removeFromCart, clearCart, submitOrder,
       updateOrder,

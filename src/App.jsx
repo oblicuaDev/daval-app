@@ -9,11 +9,12 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminPriceLists from './pages/admin/AdminPriceLists';
 import AdminClients from './pages/admin/AdminClients';
-import AdminBranches from './pages/admin/AdminBranches';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminOrderDetail from './pages/admin/AdminOrderDetail';
 import AdminCompanies from './pages/admin/AdminCompanies';
+import AdminRoutes from './pages/admin/AdminRoutes';
+import AdminPromotions from './pages/admin/AdminPromotions';
 import ClientLayout from './pages/client/ClientLayout';
 import ClientCatalog from './pages/client/ClientCatalog';
 import ClientOrders from './pages/client/ClientOrders';
@@ -43,11 +44,14 @@ export default function App() {
             <Route path="catalogo" element={<AdminProducts />} />
             <Route path="centros-de-costos" element={<AdminCategories />} />
             <Route path="listas-precios" element={<AdminPriceLists />} />
+            <Route path="promociones" element={<AdminPromotions />} />
+            <Route path="cotizaciones/:orderId" element={<AdminOrderDetail />} />
             <Route path="pedidos/:orderId" element={<AdminOrderDetail />} />
             <Route path="empresas" element={<AdminCompanies />} />
             <Route path="clientes" element={<AdminClients />} />
-            <Route path="pedidos" element={<AdminOrders />} />
-            <Route path="sedes" element={<AdminBranches />} />
+            <Route path="cotizaciones" element={<AdminOrders />} />
+            <Route path="pedidos" element={<Navigate to="../cotizaciones" replace />} />
+            <Route path="rutas" element={<AdminRoutes />} />
             <Route path="asesores" element={<AdminUsers />} />
           </Route>
           <Route
@@ -59,9 +63,13 @@ export default function App() {
             }
           >
             <Route index element={<ClientCatalog />} />
-            <Route path="pedidos" element={<ClientOrders />} />
-            <Route path="confirmar-pedido" element={<ClientConfirmOrder />} />
-            <Route path="aprobar-pedidos" element={<ClientApproveOrders />} />
+            <Route path="cotizaciones" element={<ClientOrders />} />
+            <Route path="pedidos" element={<Navigate to="../cotizaciones" replace />} />
+            <Route path="confirmar-cotizacion" element={<ClientConfirmOrder />} />
+            <Route path="confirmar-pedido" element={<Navigate to="../confirmar-cotizacion" replace />} />
+            <Route path="aprobar-cotizaciones" element={<ClientApproveOrders />} />
+            <Route path="aprobar-pedidos" element={<Navigate to="../aprobar-cotizaciones" replace />} />
+            <Route path="cotizaciones/:orderId" element={<ClientOrderDetail />} />
             <Route path="pedidos/:orderId" element={<ClientOrderDetail />} />
             <Route path="administrar" element={<ClientManage />} />
           </Route>
@@ -74,6 +82,7 @@ export default function App() {
             }
           >
             <Route index element={<AdvisorOrders />} />
+            <Route path="cotizacion/:orderId" element={<AdvisorOrderDetail />} />
             <Route path="pedido/:orderId" element={<AdvisorOrderDetail />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

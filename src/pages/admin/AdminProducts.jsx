@@ -12,11 +12,11 @@ const EMPTY_FORM = {
 
 function Modal({ title, onClose, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-100">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -101,27 +101,27 @@ export default function AdminProducts() {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, active: !p.active } : p));
   }
 
-  const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
+  const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500';
+  const labelClass = 'block text-sm font-medium text-gray-300 mb-1';
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Catálogo de Productos</h2>
-          <p className="text-sm text-gray-500 mt-1">{products.length} productos en total</p>
+          <h2 className="text-2xl font-bold text-gray-100">Catálogo de Productos</h2>
+          <p className="text-sm text-gray-400 mt-1">{products.length} productos en total</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
           >
             <Upload className="w-4 h-4" />
             Importar Excel
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
           >
             <Plus className="w-4 h-4" />
             Nuevo Producto
@@ -132,20 +132,20 @@ export default function AdminProducts() {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre o SKU..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100 placeholder-gray-500"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
           <select
             value={filterCategory}
             onChange={e => setFilterCategory(e.target.value)}
-            className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none"
+            className="pl-9 pr-8 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100 appearance-none"
           >
             <option value="">Todas las categorías</option>
             {categories.map(c => (
@@ -156,11 +156,11 @@ export default function AdminProducts() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
+              <tr className="bg-gray-900 border-b border-gray-700">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Imagen</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">SKU</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Nombre</th>
@@ -172,31 +172,31 @@ export default function AdminProducts() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-700">
               {filtered.map(product => (
-                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={product.id} className="hover:bg-gray-700/50 transition-colors">
                   <td className="px-4 py-3">
                     <img
                       src={product.image || productFallback}
                       alt={product.name}
-                      className="w-11 h-11 object-cover rounded-lg border border-gray-100"
+                      className="w-11 h-11 object-cover rounded-lg border border-gray-700"
                     />
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono text-gray-500">{product.sku}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs">
+                  <td className="px-4 py-3 text-xs font-mono text-gray-400">{product.sku}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-100 max-w-xs">
                     <div className="truncate">{product.name}</div>
-                    <div className="text-xs text-gray-400 truncate">{product.description}</div>
+                    <div className="text-xs text-gray-500 truncate">{product.description}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                    <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
                       {getCategoryName(product.categoryId)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-800">{formatCOP(product.basePrice)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{product.stock}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{product.unit}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-200">{formatCOP(product.basePrice)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-300">{product.stock}</td>
+                  <td className="px-4 py-3 text-sm text-gray-400">{product.unit}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${product.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${product.active ? 'bg-green-950 text-green-400' : 'bg-gray-700 text-gray-400'}`}>
                       {product.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
@@ -204,14 +204,14 @@ export default function AdminProducts() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEdit(product)}
-                        className="p-1.5 text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+                        className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-950 rounded-lg transition"
                         title="Editar"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => toggleActive(product.id)}
-                        className="p-1.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition"
+                        className="p-1.5 text-gray-500 hover:text-orange-400 hover:bg-orange-950 rounded-lg transition"
                         title={product.active ? 'Desactivar' : 'Activar'}
                       >
                         {product.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -222,7 +222,7 @@ export default function AdminProducts() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">
                     No se encontraron productos
                   </td>
                 </tr>
@@ -243,9 +243,9 @@ export default function AdminProducts() {
                 <img
                   src={form.image || productFallback}
                   alt="preview"
-                  className="w-full h-44 object-cover rounded-xl border border-gray-200"
+                  className="w-full h-44 object-cover rounded-xl border border-gray-600"
                 />
-                <label className="absolute inset-0 flex flex-col items-center justify-center rounded-xl cursor-pointer bg-black bg-opacity-0 group-hover:bg-opacity-40 transition">
+                <label className="absolute inset-0 flex flex-col items-center justify-center rounded-xl cursor-pointer bg-black bg-opacity-0 group-hover:bg-opacity-50 transition">
                   <Camera className="w-7 h-7 text-white opacity-0 group-hover:opacity-100 transition mb-1" />
                   <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition">
                     {form.image ? 'Cambiar imagen' : 'Subir imagen'}
@@ -256,7 +256,7 @@ export default function AdminProducts() {
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, image: null }))}
-                    className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow text-gray-500 hover:text-red-600 transition"
+                    className="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-full shadow text-gray-400 hover:text-red-400 transition"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -301,26 +301,25 @@ export default function AdminProducts() {
                 </select>
               </div>
             </div>
-            {/* Complementary products (cross-selling) */}
+            {/* Complementary products */}
             <div>
               <label className={labelClass + ' flex items-center gap-1.5'}>
-                <Link2 className="w-3.5 h-3.5 text-blue-500" />
-                Productos complementarios <span className="text-gray-400 font-normal text-xs">(cross-selling)</span>
+                <Link2 className="w-3.5 h-3.5 text-blue-400" />
+                Productos complementarios <span className="text-gray-500 font-normal text-xs">(cross-selling)</span>
               </label>
 
-              {/* Selected chips */}
               {form.complementaryIds.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {form.complementaryIds.map(id => {
                     const p = products.find(pr => pr.id === id);
                     if (!p) return null;
                     return (
-                      <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span key={id} className="inline-flex items-center gap-1 bg-blue-950 text-blue-300 border border-blue-800 rounded-full px-2 py-0.5 text-xs font-medium">
                         {p.name}
                         <button
                           type="button"
                           onClick={() => setForm(f => ({ ...f, complementaryIds: f.complementaryIds.filter(i => i !== id) }))}
-                          className="text-blue-400 hover:text-blue-700 transition"
+                          className="text-blue-500 hover:text-blue-300 transition"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -330,9 +329,8 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              {/* Search input */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-3.5 h-3.5" />
                 <input
                   className={inputClass + ' pl-8'}
                   value={crossSearch}
@@ -341,7 +339,6 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Dropdown results */}
               {crossSearch.trim() && (() => {
                 const q = crossSearch.toLowerCase();
                 const results = products.filter(p =>
@@ -350,7 +347,7 @@ export default function AdminProducts() {
                   (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
                 ).slice(0, 6);
                 return results.length > 0 ? (
-                  <div className="border border-gray-200 rounded-lg mt-1 divide-y divide-gray-100 shadow-sm overflow-hidden">
+                  <div className="border border-gray-600 rounded-lg mt-1 divide-y divide-gray-700 shadow-sm overflow-hidden">
                     {results.map(p => (
                       <button
                         key={p.id}
@@ -359,36 +356,36 @@ export default function AdminProducts() {
                           setForm(f => ({ ...f, complementaryIds: [...f.complementaryIds, p.id] }));
                           setCrossSearch('');
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-blue-50 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-blue-950 transition"
                       >
                         <img
                           src={p.image || '/product.webp'}
                           alt={p.name}
-                          className="w-7 h-7 rounded object-cover flex-shrink-0 border border-gray-100"
+                          className="w-7 h-7 rounded object-cover flex-shrink-0 border border-gray-600"
                           onError={e => { e.target.src = '/product.webp'; }}
                         />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
-                          <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
+                          <p className="text-sm font-medium text-gray-200 truncate">{p.name}</p>
+                          <p className="text-xs text-gray-500 font-mono">{p.sku}</p>
                         </div>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 mt-1.5 px-1">Sin resultados</p>
+                  <p className="text-xs text-gray-500 mt-1.5 px-1">Sin resultados</p>
                 );
               })()}
             </div>
 
             <div className="flex items-center gap-2">
               <input type="checkbox" id="active" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="rounded" />
-              <label htmlFor="active" className="text-sm text-gray-700">Producto activo</label>
+              <label htmlFor="active" className="text-sm text-gray-300">Producto activo</label>
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
-              <button onClick={handleSave} className="flex-1 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition">
+              <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                 {editProduct ? 'Guardar Cambios' : 'Crear Producto'}
               </button>
             </div>
@@ -400,27 +397,27 @@ export default function AdminProducts() {
       {showImport && (
         <Modal title="Importar Productos desde Excel" onClose={() => setShowImport(false)}>
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               Selecciona un archivo Excel (.xlsx) con el formato de productos. Las columnas deben ser: SKU, Nombre, Categoría, Descripción, Precio Base, Stock, Unidad.
             </p>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-400 transition">
-              <Upload className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500 mb-2">Arrastra tu archivo aquí o</p>
+            <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-blue-500 transition">
+              <Upload className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+              <p className="text-sm text-gray-400 mb-2">Arrastra tu archivo aquí o</p>
               <label className="cursor-pointer">
-                <span className="text-sm font-medium text-blue-600 hover:text-blue-700">Seleccionar archivo</span>
+                <span className="text-sm font-medium text-blue-400 hover:text-blue-300">Seleccionar archivo</span>
                 <input type="file" accept=".xlsx,.xls,.csv" className="hidden" />
               </label>
             </div>
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
+            <div className="bg-blue-950 border border-blue-800 rounded-lg p-3">
+              <p className="text-xs text-blue-300">
                 Esta es una demostración. El archivo no será procesado realmente.
               </p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowImport(false)} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+              <button onClick={() => setShowImport(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
-              <button onClick={() => setShowImport(false)} className="flex-1 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition">
+              <button onClick={() => setShowImport(false)} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                 Importar (Demo)
               </button>
             </div>

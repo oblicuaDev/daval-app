@@ -4,27 +4,81 @@
 export const INITIAL_COMPANIES = [
   {
     id: 1,
-    name: 'Papelería El Centro',
+    name: 'Ferretería El Tornillo Dorado',
     nit: '900.123.456-7',
-    email: 'contacto@elcentro.com',
+    email: 'compras@tornillodorado.com',
     phone: '601-234-5678',
     address: 'Cra 10 # 5-23, Bogotá',
     active: true,
     sucursales: [
-      { id: 1, name: 'Sede Principal', address: 'Cra 10 # 5-23, Bogotá', city: 'Bogotá', active: true },
-      { id: 2, name: 'Sucursal Chapinero', address: 'Cra 13 # 56-12, Bogotá', city: 'Bogotá', active: true },
+      { id: 1, name: 'Mostrador Centro', address: 'Cra 10 # 5-23, Bogotá', city: 'Bogotá', routeId: 1, advisorId: 2, active: true },
+      { id: 2, name: 'Bodega Chapinero', address: 'Cra 13 # 56-12, Bogotá', city: 'Bogotá', routeId: 1, advisorId: 2, active: true },
     ],
   },
   {
     id: 2,
-    name: 'Distribuciones Norte S.A.S.',
+    name: 'Ferretería Industrial Norte S.A.S.',
     nit: '800.987.654-3',
-    email: 'compras@disnorte.com',
+    email: 'compras@ferreindustrialnorte.com',
     phone: '604-456-7890',
     address: 'Av. El Poblado # 10-50, Medellín',
     active: true,
     sucursales: [
-      { id: 1, name: 'Sede Medellín', address: 'Av. El Poblado # 10-50, Medellín', city: 'Medellín', active: true },
+      { id: 1, name: 'Sala de ventas Medellín', address: 'Av. El Poblado # 10-50, Medellín', city: 'Medellín', routeId: null, advisorId: 2, active: true },
+      { id: 2, name: 'Centro logístico Itagüí', address: 'Cra 52 # 75-41, Itagüí', city: 'Itagüí', routeId: null, advisorId: 2, active: true },
+    ],
+  },
+  {
+    id: 3,
+    name: 'Casa Ferretera del Caribe',
+    nit: '901.445.228-1',
+    email: 'abastecimiento@ferrecaribe.com',
+    phone: '605-665-4421',
+    address: 'Av. Pedro de Heredia # 32-80, Cartagena',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Sede Bosque', address: 'Transv. 54 # 21-88, Cartagena', city: 'Cartagena', routeId: null, advisorId: 2, active: true },
+      { id: 2, name: 'Sede Manga', address: 'Cra 24 # 28-19, Cartagena', city: 'Cartagena', routeId: null, advisorId: 2, active: true },
+      { id: 3, name: 'Bodega Mamonal', address: 'Km 4 Vía Mamonal, Cartagena', city: 'Cartagena', routeId: null, advisorId: 2, active: true },
+    ],
+  },
+  {
+    id: 4,
+    name: 'Suministros y Herramientas Andina',
+    nit: '830.215.772-4',
+    email: 'compras@herramientasandina.com',
+    phone: '601-742-1188',
+    address: 'Av. Boyacá # 72-45, Bogotá',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Punto Boyacá', address: 'Av. Boyacá # 72-45, Bogotá', city: 'Bogotá', routeId: 1, advisorId: 2, active: true },
+      { id: 2, name: 'Punto Fontibón', address: 'Calle 17 # 96-31, Bogotá', city: 'Bogotá', routeId: 1, advisorId: 2, active: true },
+    ],
+  },
+  {
+    id: 5,
+    name: 'Ferretería Maestro Constructor',
+    nit: '901.778.913-5',
+    email: 'logistica@maestroconstructor.com',
+    phone: '602-388-9021',
+    address: 'Calle 5 # 44-21, Cali',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Sede San Fernando', address: 'Calle 5 # 44-21, Cali', city: 'Cali', routeId: null, advisorId: 2, active: true },
+      { id: 2, name: 'Sede Acopi Yumbo', address: 'Cra 35 # 10-120, Yumbo', city: 'Yumbo', routeId: null, advisorId: 2, active: true },
+    ],
+  },
+  {
+    id: 6,
+    name: 'Depósito Ferremax Mayorista',
+    nit: '900.654.331-8',
+    email: 'cotizaciones@ferremaxmayorista.com',
+    phone: '607-691-3344',
+    address: 'Cra 27 # 36-18, Bucaramanga',
+    active: true,
+    sucursales: [
+      { id: 1, name: 'Depósito Principal', address: 'Cra 27 # 36-18, Bucaramanga', city: 'Bucaramanga', routeId: null, advisorId: 2, active: true },
+      { id: 2, name: 'Punto Floridablanca', address: 'Anillo Vial # 12-90, Floridablanca', city: 'Floridablanca', routeId: null, advisorId: 2, active: true },
     ],
   },
 ];
@@ -52,7 +106,7 @@ export const INITIAL_USERS = [
   },
   {
     id: 3,
-    name: 'Papelería El Centro',
+    name: 'Ferretería El Tornillo Dorado',
     email: 'supervisor@oblicua.com',
     password: 'cliente123',
     role: 'client',
@@ -63,23 +117,23 @@ export const INITIAL_USERS = [
     contactName: 'Lucía Gómez',
     phone: '311-234-5678',
     address: 'Cra 10 # 5-23, Bogotá',
-    initials: 'PC',
+    initials: 'FT',
     createdAt: '2024-01-15',
   },
   {
     id: 4,
-    name: 'Comprador El Centro',
+    name: 'Comprador Tornillo Dorado',
     email: 'cliente@oblicua.com',
     password: 'cliente123',
     role: 'client',
-    clientRole: 'creador_pedidos',
+    clientRole: 'creador_cotizaciones',
     priceListId: 2,
     companyId: 1,
     sucursalId: 1,
     contactName: 'Pedro Sánchez',
     phone: '311-987-6543',
     address: 'Cra 10 # 5-23, Bogotá',
-    initials: 'CE',
+    initials: 'CT',
     createdAt: '2024-01-20',
   },
 ];
@@ -90,6 +144,33 @@ export const INITIAL_USERS = [
 export const INITIAL_BRANCHES = [
   { id: 1, name: 'Sede Centro', city: 'Bogotá', address: 'Cra 7 # 15-30', phone: '601-234-5678', active: true },
   { id: 2, name: 'Sede Norte', city: 'Bogotá', address: 'Cra 15 # 85-20', phone: '601-345-6789', active: true },
+];
+
+// =====================
+// DELIVERY ROUTES
+// =====================
+export const INITIAL_ROUTES = [
+  {
+    id: 1,
+    name: 'Ruta Centro Empresarial',
+    day: 'Lunes',
+    city: 'Bogotá',
+    quadrantId: 'centro',
+    quadrantName: 'Cobertura personalizada',
+    mapZone: 'Bogotá, Colombia',
+    streetFrom: 'Calle 6',
+    streetTo: 'Calle 26',
+    carreraFrom: 'Carrera 3',
+    carreraTo: 'Carrera 14',
+    bounds: {
+      north: 4.735,
+      south: 4.685,
+      east: -74.045,
+      west: -74.105,
+    },
+    center: { lat: 4.711, lng: -74.0721 },
+    active: true,
+  },
 ];
 
 // =====================
@@ -111,6 +192,11 @@ export const INITIAL_PRICE_LISTS = [
   { id: 2, name: 'Lista B', description: 'Precio distribuidor', multiplier: 0.90 },
   { id: 3, name: 'Lista C', description: 'Precio mayorista', multiplier: 0.80 },
 ];
+
+// =====================
+// PROMOTIONS
+// =====================
+export const INITIAL_PROMOTIONS = [];
 
 // =====================
 // PRODUCTS
@@ -144,12 +230,12 @@ export const INITIAL_PRODUCTS = [
 export const ORDER_STATUSES = ['Pendiente', 'Validar disponibilidad', 'Alistamiento', 'En Ruta', 'Entregado'];
 
 export const STATUS_STYLES = {
-  'Pendiente por aprobar': { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200' },
-  'Pendiente': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
-  'Validar disponibilidad': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
-  'Alistamiento': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
-  'En Ruta': { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
-  'Entregado': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
+  'Pendiente por aprobar': { bg: 'bg-rose-950', text: 'text-rose-300', border: 'border-rose-800' },
+  'Pendiente': { bg: 'bg-yellow-950', text: 'text-yellow-300', border: 'border-yellow-800' },
+  'Validar disponibilidad': { bg: 'bg-blue-950', text: 'text-blue-300', border: 'border-blue-800' },
+  'Alistamiento': { bg: 'bg-purple-950', text: 'text-purple-300', border: 'border-purple-800' },
+  'En Ruta': { bg: 'bg-orange-950', text: 'text-orange-300', border: 'border-orange-800' },
+  'Entregado': { bg: 'bg-green-950', text: 'text-green-300', border: 'border-green-800' },
 };
 
 // =====================
@@ -157,8 +243,13 @@ export const STATUS_STYLES = {
 // =====================
 export const INITIAL_ORDERS = [
   {
-    id: 'ORD-001',
+    id: 'COT-001',
     clientId: 3,
+    requestedById: 3,
+    requestedByName: 'Ferretería El Tornillo Dorado',
+    companyId: 1,
+    sucursalId: 1,
+    sucursalName: 'Mostrador Centro',
     advisorId: 2,
     status: 'Entregado',
     createdAt: '2024-02-10',
@@ -171,16 +262,21 @@ export const INITIAL_ORDERS = [
     notes: 'Entrega urgente solicitada',
     total: 150300,
     comments: [
-      { id: 'c1', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido recibido y validado en bodega. Se procede con alistamiento.', createdAt: '2024-02-10T10:30:00' },
-      { id: 'c2', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido despachado con TCC. Guía #TCC-2024-88321.', createdAt: '2024-02-12T08:15:00' },
+      { id: 'c1', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Cotización recibida y validada en bodega. Se procede con alistamiento.', createdAt: '2024-02-10T10:30:00' },
+      { id: 'c2', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Cotización despachada con TCC. Guía #TCC-2024-88321.', createdAt: '2024-02-12T08:15:00' },
     ],
     attachments: [
-      { id: 'a1', name: 'remision-ORD-001.pdf', size: 142000, type: 'application/pdf', uploadedBy: 'Ana Martínez', uploadedAt: '2024-02-12T08:20:00' },
+      { id: 'a1', name: 'remision-COT-001.pdf', size: 142000, type: 'application/pdf', uploadedBy: 'Ana Martínez', uploadedAt: '2024-02-12T08:20:00' },
     ],
   },
   {
-    id: 'ORD-002',
+    id: 'COT-002',
     clientId: 3,
+    requestedById: 3,
+    requestedByName: 'Ferretería El Tornillo Dorado',
+    companyId: 1,
+    sucursalId: 1,
+    sucursalName: 'Mostrador Centro',
     advisorId: 2,
     status: 'En Ruta',
     createdAt: '2024-02-20',
@@ -193,13 +289,18 @@ export const INITIAL_ORDERS = [
     notes: '',
     total: 134100,
     comments: [
-      { id: 'c3', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Pedido alistado. Sale en ruta con Envia hoy.', createdAt: '2024-02-21T09:00:00' },
+      { id: 'c3', authorId: 2, authorName: 'Ana Martínez', authorRole: 'advisor', text: 'Cotización alistada. Sale en ruta con Envia hoy.', createdAt: '2024-02-21T09:00:00' },
     ],
     attachments: [],
   },
   {
-    id: 'ORD-003',
+    id: 'COT-003',
     clientId: 3,
+    requestedById: 3,
+    requestedByName: 'Ferretería El Tornillo Dorado',
+    companyId: 1,
+    sucursalId: 1,
+    sucursalName: 'Mostrador Centro',
     advisorId: 2,
     status: 'Alistamiento',
     createdAt: '2024-02-28',
@@ -215,8 +316,13 @@ export const INITIAL_ORDERS = [
     attachments: [],
   },
   {
-    id: 'ORD-004',
+    id: 'COT-004',
     clientId: 3,
+    requestedById: 3,
+    requestedByName: 'Ferretería El Tornillo Dorado',
+    companyId: 1,
+    sucursalId: 1,
+    sucursalName: 'Mostrador Centro',
     advisorId: 2,
     status: 'Pendiente',
     createdAt: '2024-03-01',
@@ -233,8 +339,13 @@ export const INITIAL_ORDERS = [
     attachments: [],
   },
   {
-    id: 'ORD-005',
+    id: 'COT-005',
     clientId: 4,
+    requestedById: 4,
+    requestedByName: 'Comprador Tornillo Dorado',
+    companyId: 1,
+    sucursalId: 1,
+    sucursalName: 'Mostrador Centro',
     advisorId: null,
     status: 'Pendiente por aprobar',
     createdAt: '2024-03-05',
@@ -244,7 +355,7 @@ export const INITIAL_ORDERS = [
       { productId: 6, productName: 'Esfero Azul Caja x12', quantity: 10, unitPrice: 7560, unit: 'Caja' },
       { productId: 17, productName: 'Folder Carta Paq x50', quantity: 4, unitPrice: 16650, unit: 'Paquete' },
     ],
-    notes: 'Pedido de reposición mensual de escritura',
+    notes: 'Cotización de reposición mensual de escritura',
     total: 142200,
     comments: [],
     attachments: [],
@@ -252,10 +363,12 @@ export const INITIAL_ORDERS = [
 ];
 
 // Helper: get price for a product given a priceListId
-export function getPrice(basePrice, priceListId, priceLists) {
+export function getPrice(basePrice, priceListId, priceLists, sku = '') {
   const list = priceLists.find(pl => pl.id === priceListId);
   if (!list) return basePrice;
-  return Math.round(basePrice * list.multiplier);
+  const exactPrice = list.pricesBySku?.[sku];
+  if (Number.isFinite(exactPrice)) return exactPrice;
+  return Math.round(basePrice * (list.multiplier || 1));
 }
 
 // Format currency COP

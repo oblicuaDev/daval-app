@@ -11,14 +11,14 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
-      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
-      <p className="text-base font-bold text-blue-700">{formatCOP(payload[0].value)}</p>
+    <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg px-4 py-3">
+      <p className="text-xs font-semibold text-gray-400 mb-1">{label}</p>
+      <p className="text-base font-bold text-blue-400">{formatCOP(payload[0].value)}</p>
     </div>
   );
 }
 
-const inputCls = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+const inputCls = 'border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100';
 
 const FILTER_TABS = [
   { label: 'Todos', value: 'all' },
@@ -101,25 +101,29 @@ export default function AdvisorOrders() {
     return users.find(u => u.id === clientId)?.name || '—';
   }
 
+  function getRequesterName(order) {
+    return order.requestedByName || getClientName(order.requestedById || order.clientId);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Pedidos Asignados</h2>
-          <p className="text-sm text-gray-500 mt-1">{myOrders.length} pedidos en el periodo</p>
+          <h2 className="text-2xl font-bold text-gray-100">Cotizaciones Asignadas</h2>
+          <p className="text-sm text-gray-400 mt-1">{myOrders.length} cotizaciones en el periodo</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 shadow-sm">
             <CalendarDays className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="text-xs font-medium text-gray-500">Desde</span>
+            <span className="text-xs font-medium text-gray-400">Desde</span>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} />
-            <span className="text-xs font-medium text-gray-500">Hasta</span>
+            <span className="text-xs font-medium text-gray-400">Hasta</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputCls} />
           </div>
           {isFiltered && (
             <button
               onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 rounded-xl transition"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-400 hover:text-red-300 hover:bg-red-950 border border-gray-700 rounded-xl transition"
             >
               <X className="w-4 h-4" />
               Limpiar
@@ -129,17 +133,17 @@ export default function AdvisorOrders() {
       </div>
 
       {isFiltered && (
-        <div className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 font-medium">
-          Mostrando {myOrders.length} pedido(s) en el rango seleccionado
+        <div className="text-xs text-blue-300 bg-blue-950 border border-blue-900 rounded-lg px-4 py-2 font-medium">
+          Mostrando {myOrders.length} cotización(s) en el rango seleccionado
         </div>
       )}
 
       {/* Highlight cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <HighlightCard
-          label="Pedidos entregados"
+          label="Cotizaciones entregadas"
           value={deliveredOrders.length}
-          sub={`${deliveredPct}% del total de pedidos`}
+          sub={`${deliveredPct}% del total de cotizaciones`}
           icon={CheckCircle}
           bg="bg-green-500"
           text="text-white"
@@ -147,7 +151,7 @@ export default function AdvisorOrders() {
         <HighlightCard
           label="Productos entregados"
           value={deliveredUnits}
-          sub="unidades en pedidos entregados"
+          sub="unidades en cotizaciones entregadas"
           icon={Box}
           bg="bg-sky-400"
           text="text-white"
@@ -155,7 +159,7 @@ export default function AdvisorOrders() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-gray-800 border border-gray-700 rounded-xl p-1 w-fit">
         {FILTER_TABS.map(tab => {
           const count = tab.value === 'all'
             ? myOrders.length
@@ -169,13 +173,13 @@ export default function AdvisorOrders() {
               onClick={() => setActiveTab(tab.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                 activeTab === tab.value
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-gray-700 text-blue-300 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               {tab.label}
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                activeTab === tab.value ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
+                activeTab === tab.value ? 'bg-blue-950 text-blue-300' : 'bg-gray-700 text-gray-400'
               }`}>
                 {count}
               </span>
@@ -184,13 +188,14 @@ export default function AdvisorOrders() {
         })}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3"># Pedido</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Cliente</th>
+              <tr className="bg-gray-900 border-b border-gray-700">
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3"># Cotización</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Solicitante</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Sucursal</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Fecha</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Items</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Total</th>
@@ -198,16 +203,17 @@ export default function AdvisorOrders() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-700">
               {filtered.map(order => {
                 const style = STATUS_STYLES[order.status] || {};
                 return (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-mono font-medium text-blue-700">{order.id}</td>
-                    <td className="px-5 py-4 text-sm text-gray-700">{getClientName(order.clientId)}</td>
+                  <tr key={order.id} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="px-5 py-4 text-sm font-mono font-medium text-blue-400">{order.id}</td>
+                    <td className="px-5 py-4 text-sm text-gray-300">{getRequesterName(order)}</td>
+                    <td className="px-5 py-4 text-sm text-gray-500">{order.sucursalName || 'Sin sucursal'}</td>
                     <td className="px-5 py-4 text-sm text-gray-500">{order.createdAt}</td>
-                    <td className="px-5 py-4 text-sm text-gray-600">{order.items.length}</td>
-                    <td className="px-5 py-4 text-sm font-medium text-gray-800">{formatCOP(order.total)}</td>
+                    <td className="px-5 py-4 text-sm text-gray-400">{order.items.length}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-gray-100">{formatCOP(order.total)}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
                         {order.status}
@@ -215,8 +221,8 @@ export default function AdvisorOrders() {
                     </td>
                     <td className="px-5 py-4">
                       <button
-                        onClick={() => navigate(`/asesor/pedido/${order.id}`)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg text-xs font-medium transition"
+                        onClick={() => navigate(`/asesor/cotizacion/${order.id}`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-blue-300 bg-blue-950 hover:bg-blue-900 rounded-lg text-xs font-medium transition"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Ver detalle
@@ -227,9 +233,9 @@ export default function AdvisorOrders() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center">
+                  <td colSpan={8} className="px-5 py-16 text-center">
                     <ClipboardList className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-sm text-gray-400">No hay pedidos en esta categoría</p>
+                    <p className="text-sm text-gray-400">No hay cotizaciones en esta categoría</p>
                   </td>
                 </tr>
               )}
@@ -242,9 +248,9 @@ export default function AdvisorOrders() {
       <div className="flex gap-4 items-start">
 
         {/* Top 10 productos — 40% */}
-        <div className="w-2/5 bg-white rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-base font-semibold text-gray-800">Top 10 Productos</h3>
+        <div className="w-2/5 bg-gray-800 rounded-xl shadow-sm border border-gray-700 flex-shrink-0">
+          <div className="px-5 py-4 border-b border-gray-700">
+            <h3 className="text-base font-semibold text-gray-200">Top 10 Productos</h3>
             <p className="text-xs text-gray-400 mt-0.5">Por unidades consumidas en el periodo</p>
           </div>
           <div className="p-4 space-y-2">
@@ -254,9 +260,9 @@ export default function AdvisorOrders() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}</span>
-                      <span className="text-xs font-medium text-gray-700 truncate">{item.name}</span>
+                      <span className="text-xs font-medium text-gray-300 truncate">{item.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-blue-700 ml-2 flex-shrink-0">{item.qty}</span>
+                    <span className="text-xs font-bold text-blue-400 ml-2 flex-shrink-0">{item.qty}</span>
                   </div>
                 </div>
               );
@@ -268,10 +274,10 @@ export default function AdvisorOrders() {
         </div>
 
         {/* Histórico de consumos — 60% */}
-        <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex-1 bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
           <div className="mb-6">
-            <h3 className="text-base font-semibold text-gray-800">Histórico de Consumos</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Monto total de pedidos por mes{isFiltered ? ' · filtrado por periodo' : ''}</p>
+            <h3 className="text-base font-semibold text-gray-200">Histórico de Consumos</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Monto total de cotizaciones por mes{isFiltered ? ' · filtrado por periodo' : ''}</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
@@ -281,7 +287,7 @@ export default function AdvisorOrders() {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'Montserrat' }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={v => v === 0 ? '0' : `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'Montserrat' }} axisLine={false} tickLine={false} width={48} />
               <Tooltip content={<CustomTooltip />} />

@@ -14,9 +14,9 @@ export default function AdminOrderDetail() {
   if (!order) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Pedido no encontrado</p>
+        <p className="text-gray-500">Cotización no encontrada</p>
         <button
-          onClick={() => navigate('/admin/pedidos')}
+          onClick={() => navigate('/admin/cotizaciones')}
           className="mt-4 text-blue-700 hover:text-blue-800 text-sm font-medium"
         >
           Volver a la lista
@@ -28,7 +28,7 @@ export default function AdminOrderDetail() {
   return (
     <OrderDetailCRM
       order={order}
-      onBack={() => navigate('/admin/pedidos')}
+      onBack={() => navigate('/admin/cotizaciones')}
       editable={true}
       canAssign={true}
       currentUser={currentUser}

@@ -14,7 +14,7 @@ export default function AdvisorOrderDetail() {
   if (!order) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Pedido no encontrado</p>
+        <p className="text-gray-500">Cotización no encontrada</p>
         <button
           onClick={() => navigate('/asesor')}
           className="mt-4 text-blue-700 hover:text-blue-800 text-sm font-medium"

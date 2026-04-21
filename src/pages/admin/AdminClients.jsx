@@ -5,11 +5,11 @@ import { useApp } from '../../context/AppContext';
 
 function Modal({ title, onClose, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-100">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -21,7 +21,7 @@ function Modal({ title, onClose, children }) {
 
 const EMPTY_FORM = {
   name: '', contactName: '', email: '', password: '', phone: '', address: '',
-  priceListId: 1, companyId: '', sucursalId: '', clientRole: 'creador_pedidos',
+  priceListId: 1, companyId: '', sucursalId: '', clientRole: 'creador_cotizaciones',
 };
 
 export default function AdminClients() {
@@ -46,7 +46,6 @@ export default function AdminClients() {
     return company?.sucursales.find(s => s.id === sucursalId)?.name || '—';
   }
 
-  // sucursales available for the selected company
   const availableSucursales = form.companyId
     ? (companies.find(c => c.id === Number(form.companyId))?.sucursales || [])
     : [];
@@ -83,30 +82,30 @@ export default function AdminClients() {
     setShowModal(false);
   }
 
-  const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
+  const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500';
+  const labelClass = 'block text-sm font-medium text-gray-300 mb-1';
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
-          <p className="text-sm text-gray-500 mt-1">{clients.length} clientes registrados</p>
+          <h2 className="text-2xl font-bold text-gray-100">Clientes</h2>
+          <p className="text-sm text-gray-400 mt-1">{clients.length} clientes registrados</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
         >
           <Plus className="w-4 h-4" />
           Nuevo Cliente
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
+              <tr className="bg-gray-900 border-b border-gray-700">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Cliente</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Empresa / Sucursal</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Rol</th>
@@ -116,69 +115,69 @@ export default function AdminClients() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Fecha</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-700">
               {clients.map(client => (
-                <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={client.id} className="hover:bg-gray-700/50 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      <div className="w-9 h-9 bg-emerald-900 text-emerald-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                         {client.initials}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{client.name}</p>
-                        <p className="text-xs text-gray-400">{client.email}</p>
+                        <p className="text-sm font-medium text-gray-100">{client.name}</p>
+                        <p className="text-xs text-gray-500">{client.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-4">
                     {client.companyId ? (
                       <div>
-                        <div className="flex items-center gap-1 text-sm text-gray-700">
-                          <Building className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                        <div className="flex items-center gap-1 text-sm text-gray-300">
+                          <Building className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                           {getCompanyName(client.companyId)}
                         </div>
                         {client.sucursalId && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                             <GitBranch className="w-3 h-3 flex-shrink-0" />
                             {getSucursalName(client.companyId, client.sucursalId)}
                           </div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-gray-600">—</span>
                     )}
                   </td>
                   <td className="px-5 py-4">
                     {client.clientRole === 'supervisor' ? (
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">Supervisor</span>
+                      <span className="text-xs bg-purple-950 text-purple-300 px-2 py-1 rounded-full font-medium">Supervisor</span>
                     ) : (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">Creador de pedidos</span>
+                      <span className="text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full font-medium">Creador de cotizaciones</span>
                     )}
                   </td>
                   <td className="px-5 py-4">
-                    <div className="text-sm text-gray-700">{client.contactName || '—'}</div>
+                    <div className="text-sm text-gray-300">{client.contactName || '—'}</div>
                     {client.phone && (
-                      <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                         <Phone className="w-3 h-3" />
                         {client.phone}
                       </div>
                     )}
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                    <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
                       {getPriceListName(client.priceListId)}
                     </span>
                   </td>
                   <td className="px-5 py-4">
                     {client.address ? (
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
                         <MapPin className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate max-w-32">{client.address}</span>
                       </div>
                     ) : '—'}
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Calendar className="w-3 h-3" />
                       {client.createdAt || '—'}
                     </div>
@@ -187,7 +186,7 @@ export default function AdminClients() {
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-500">
                     No hay clientes registrados
                   </td>
                 </tr>
@@ -200,16 +199,11 @@ export default function AdminClients() {
       {showModal && (
         <Modal title="Nuevo Cliente" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
-            {/* Empresa + Sucursal */}
-            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
-              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Empresa y Sucursal</p>
+            <div className="p-3 bg-blue-950 rounded-xl border border-blue-800 space-y-3">
+              <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Empresa y Sucursal</p>
               <div>
                 <label className={labelClass}>Empresa *</label>
-                <select
-                  className={inputClass}
-                  value={form.companyId}
-                  onChange={handleCompanyChange}
-                >
+                <select className={inputClass} value={form.companyId} onChange={handleCompanyChange}>
                   <option value="">— Seleccionar empresa —</option>
                   {companies.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -232,10 +226,9 @@ export default function AdminClients() {
               </div>
             </div>
 
-            {/* User data */}
             <div>
               <label className={labelClass}>Nombre usuario / razón social *</label>
-              <input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Papelería El Centro" />
+              <input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ferretería El Tornillo Dorado" />
             </div>
             <div>
               <label className={labelClass}>Nombre contacto</label>
@@ -268,20 +261,20 @@ export default function AdminClients() {
             <div>
               <label className={labelClass}>Rol del usuario *</label>
               <select className={inputClass} value={form.clientRole} onChange={e => setForm(f => ({ ...f, clientRole: e.target.value }))}>
-                <option value="creador_pedidos">Creador de pedidos</option>
+                <option value="creador_cotizaciones">Creador de cotizaciones</option>
                 <option value="supervisor">Supervisor</option>
               </select>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 {form.clientRole === 'supervisor'
-                  ? 'Puede crear pedidos y aprobar los pedidos de creadores de su empresa.'
-                  : 'Crea pedidos que quedan pendientes de aprobación por un supervisor.'}
+                  ? 'Puede crear cotizaciones y aprobar las cotizaciones de creadores de su empresa.'
+                  : 'Crea cotizaciones que quedan pendientes de aprobación por un supervisor.'}
               </p>
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
-              <button onClick={handleSave} className="flex-1 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition">
+              <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                 Crear Cliente
               </button>
             </div>
