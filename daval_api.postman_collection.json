@@ -1,0 +1,292 @@
+{
+  "info": {
+    "name": "DAVAL API",
+    "_postman_id": "daval-api-collection-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección completa de endpoints para la API Backend DAVAL App."
+  },
+  "variable": [
+    { "key": "base_url",    "value": "http://localhost:3000",  "type": "string" },
+    { "key": "token",       "value": "",                        "type": "string" },
+    { "key": "client_id",   "value": "",                        "type": "string" },
+    { "key": "advisor_id",  "value": "",                        "type": "string" },
+    { "key": "product_id",  "value": "",                        "type": "string" },
+    { "key": "quotation_id","value": "",                        "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.token) {",
+                  "  pm.collectionVariables.set('token', res.token);",
+                  "  pm.collectionVariables.set('advisor_id', res.user?.id ?? '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@daval.co\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Products",
+      "item": [
+        {
+          "name": "Listar productos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/products?active=true",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "categoryId", "value": "",      "disabled": true },
+                { "key": "quality",    "value": "Alta",  "disabled": true },
+                { "key": "search",     "value": "",      "disabled": true },
+                { "key": "active",     "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear producto (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('product_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Papel Bond A4\",\n  \"sku\": \"PAP-A4-500\",\n  \"categoryId\": \"\",\n  \"unit\": \"resma\",\n  \"stock\": 200,\n  \"quality\": \"Alta\",\n  \"image\": \"https://cdn.daval.co/productos/papel-a4.jpg\",\n  \"priceListPrices\": [\n    { \"price_list_name\": \"Detal\",     \"price\": 25000, \"currency\": \"COP\" },\n    { \"price_list_name\": \"Mayorista\", \"price\": 21000, \"currency\": \"COP\" }\n  ],\n  \"complementaryProducts\": [],\n  \"active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Actualizar atributos propios (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quality\": \"Media\",\n  \"image\": \"https://cdn.daval.co/productos/papel-a4-v2.jpg\",\n  \"complementaryProducts\": [\"{{product_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["products", "{{product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Búsqueda semántica",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"necesito papel para impresora de buena calidad\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/products/search", "host": ["{{base_url}}"], "path": ["products", "search"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Clients",
+      "item": [
+        {
+          "name": "Registrar cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('client_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Empresa ABC S.A.S.\",\n  \"nit\": \"900123456-1\",\n  \"email\": \"compras@empresaabc.co\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/clients", "host": ["{{base_url}}"], "path": ["clients"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Quotations",
+      "item": [
+        {
+          "name": "Crear cotización",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('quotation_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{client_id}}\",\n  \"advisorId\": \"{{advisor_id}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{product_id}}\",\n      \"quantity\": 10,\n      \"priceType\": \"Mayorista\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/quotations", "host": ["{{base_url}}"], "path": ["quotations"] }
+          }
+        },
+        {
+          "name": "Listar cotizaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/quotations",
+              "host": ["{{base_url}}"],
+              "path": ["quotations"],
+              "query": [
+                { "key": "status",     "value": "draft",          "disabled": true },
+                { "key": "advisorId",  "value": "{{advisor_id}}", "disabled": true },
+                { "key": "clientId",   "value": "{{client_id}}",  "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enviar cotización a SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/quotations/{{quotation_id}}/send-to-siigo",
+              "host": ["{{base_url}}"],
+              "path": ["quotations", "{{quotation_id}}", "send-to-siigo"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Integración SIIGO",
+      "item": [
+        {
+          "name": "Sincronizar productos desde SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/integrations/siigo/sync/products",
+              "host": ["{{base_url}}"],
+              "path": ["integrations", "siigo", "sync", "products"]
+            }
+          }
+        },
+        {
+          "name": "Crear cotización directa en SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{client_id}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{product_id}}\",\n      \"quantity\": 5,\n      \"priceType\": \"Detal\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/integrations/siigo/quotations",
+              "host": ["{{base_url}}"],
+              "path": ["integrations", "siigo", "quotations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Routes",
+      "item": [
+        {
+          "name": "Listar rutas comerciales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/routes", "host": ["{{base_url}}"], "path": ["routes"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Chatbot",
+      "item": [
+        {
+          "name": "Enviar mensaje",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Quiero cotizar 20 resmas de papel bond A4\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/chatbot/message", "host": ["{{base_url}}"], "path": ["chatbot", "message"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Dashboard",
+      "item": [
+        {
+          "name": "Métricas Admin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/stats/admin", "host": ["{{base_url}}"], "path": ["stats", "admin"] }
+          }
+        }
+      ]
+    }
+  ]
+}
