@@ -60,8 +60,11 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE users
-  ADD CONSTRAINT IF NOT EXISTS users_email_unique UNIQUE (email);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_email_unique') THEN
+    ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------
 -- RUTAS COMERCIALES
@@ -102,8 +105,11 @@ CREATE TABLE IF NOT EXISTS clients (
   updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE clients
-  ADD CONSTRAINT IF NOT EXISTS clients_nit_unique UNIQUE (nit);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_nit_unique') THEN
+    ALTER TABLE clients ADD CONSTRAINT clients_nit_unique UNIQUE (nit);
+  END IF;
+END $$;
 
 ALTER TABLE clients
   DROP CONSTRAINT IF EXISTS clients_user_id_fkey;
@@ -143,10 +149,14 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE products
-  ADD CONSTRAINT IF NOT EXISTS products_siigo_id_unique UNIQUE (siigo_id);
-ALTER TABLE products
-  ADD CONSTRAINT IF NOT EXISTS products_sku_unique UNIQUE (sku);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_siigo_id_unique') THEN
+    ALTER TABLE products ADD CONSTRAINT products_siigo_id_unique UNIQUE (siigo_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_sku_unique') THEN
+    ALTER TABLE products ADD CONSTRAINT products_sku_unique UNIQUE (sku);
+  END IF;
+END $$;
 
 ALTER TABLE products
   DROP CONSTRAINT IF EXISTS products_category_id_fkey;
@@ -168,12 +178,14 @@ CREATE TABLE IF NOT EXISTS product_price_lists (
   updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE product_price_lists
-  ADD CONSTRAINT IF NOT EXISTS ppl_price_positive CHECK (price >= 0);
-
-ALTER TABLE product_price_lists
-  ADD CONSTRAINT IF NOT EXISTS ppl_product_list_unique
-  UNIQUE (product_id, price_list_name);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ppl_price_positive') THEN
+    ALTER TABLE product_price_lists ADD CONSTRAINT ppl_price_positive CHECK (price >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ppl_product_list_unique') THEN
+    ALTER TABLE product_price_lists ADD CONSTRAINT ppl_product_list_unique UNIQUE (product_id, price_list_name);
+  END IF;
+END $$;
 
 ALTER TABLE product_price_lists
   DROP CONSTRAINT IF EXISTS ppl_product_id_fkey;
@@ -191,9 +203,12 @@ CREATE TABLE IF NOT EXISTS complementary_products (
   PRIMARY KEY (product_id, complementary_product_id)
 );
 
-ALTER TABLE complementary_products
-  ADD CONSTRAINT IF NOT EXISTS no_self_complement
-  CHECK (product_id <> complementary_product_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'no_self_complement') THEN
+    ALTER TABLE complementary_products
+      ADD CONSTRAINT no_self_complement CHECK (product_id <> complementary_product_id);
+  END IF;
+END $$;
 
 ALTER TABLE complementary_products
   DROP CONSTRAINT IF EXISTS cp_product_id_fkey;
@@ -250,10 +265,14 @@ CREATE TABLE IF NOT EXISTS quotation_items (
   created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE quotation_items
-  ADD CONSTRAINT IF NOT EXISTS qi_quantity_positive CHECK (quantity > 0);
-ALTER TABLE quotation_items
-  ADD CONSTRAINT IF NOT EXISTS qi_unit_price_positive CHECK (unit_price >= 0);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'qi_quantity_positive') THEN
+    ALTER TABLE quotation_items ADD CONSTRAINT qi_quantity_positive CHECK (quantity > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'qi_unit_price_positive') THEN
+    ALTER TABLE quotation_items ADD CONSTRAINT qi_unit_price_positive CHECK (unit_price >= 0);
+  END IF;
+END $$;
 
 ALTER TABLE quotation_items
   DROP CONSTRAINT IF EXISTS qi_quotation_id_fkey;

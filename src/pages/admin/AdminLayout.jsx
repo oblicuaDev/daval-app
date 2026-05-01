@@ -2,7 +2,7 @@ import logo from '../../logo-daval.jpeg';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Home, Package, FolderOpen, ListOrdered, Users,
-  UserCog, LogOut, Menu, X, ClipboardList, Briefcase, Map, Tag,
+  UserCog, LogOut, Menu, X, ClipboardList, Briefcase, Map, Tag, Plug,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/admin/promociones',       label: 'Promociones',               icon: Tag },
   { to: '/admin/cotizaciones',           label: 'Trabajar cotizaciones',          icon: ClipboardList },
   { to: '/admin/asesores',          label: 'Asesores',                  icon: UserCog },
+  { to: '/admin/integraciones',     label: 'Integraciones (SIIGO)',     icon: Plug },
 ];
 
 export default function AdminLayout() {

@@ -19,87 +19,50 @@ echo "========================================"
 echo "  DAVAL APP — Setup Dev"
 echo "========================================"
 
-# ---------------------------------------------------------------
-# 1. Estructura de carpetas
-# ---------------------------------------------------------------
-echo ""
-echo "[1/5] Creando estructura de carpetas..."
-
-mkdir -p "$ROOT_DIR/api/src/config"
-mkdir -p "$ROOT_DIR/api/src/routes"
-mkdir -p "$ROOT_DIR/api/src/controllers"
-mkdir -p "$ROOT_DIR/api/src/middleware"
-
-echo "  ✓ api/src/{config,routes,controllers,middleware}"
-
-# ---------------------------------------------------------------
-# 2. package.json del API
+# -------------------------------------------# 1. Dependencias del API (no toca package.json si ya existe)
 # ---------------------------------------------------------------
 echo ""
-echo "[2/5] Inicializando package.json en api/..."
+echo "[1/4] Instalando dependencias del API..."
+cd "$ROOT_DIR/api"
+if [ ! -f package.json ]; then
+  echo "  ✗ Falta api/package.json. Aborto." >&2
+  exit 1
+fi
+npm install
+cd "$ROOT_DIR"
 
-if [ ! -f "$ROOT_DIR/api/package.json" ]; then
-  cd "$ROOT_DIR/api"
-  npm init -y --quiet
-  # Ajustes mínimos al package.json generado
-  node -e "
-    const fs = require('fs');
-    const pkg = JSON.parse(fs.readFileSync('package.json'));
-    pkg.name = 'daval-api';
-    pkg.description = 'API Backend Daval App';
-    pkg.main = 'src/index.js';
-    pkg.scripts = {
-      start: 'node --env-file=.env src/index.js',
-      dev: 'node --env-file=.env --watch src/index.js'
-    };
-    pkg.engines = { node: '>=20.0.0' };
-    fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-  "
-  cd "$ROOT_DIR"
-  echo "  ✓ package.json creado"
-else
-  echo "  ✓ package.json ya existe. Omitido."
+# ---------------------------------------------------------------
+# 2. Dependencias del frontend
+# ---------------------------------------------------------------
+echo ""
+echo "[2/4] Instalando dependencias del frontend..."
+cd "$ROOT_DIR"
+npm install
+
+# ---------------------------------------------------------------
+# 3. Crear rol y base de datos
+# ---------------------------------------------------------------
+echo ""
+echo "[3/4] Configurando PostgreSQL local (rol + DB)..."
+
+# Password del superusuario: env var o prompt (sin eco)
+if [ -z "${PG_SUPERUSER_PASSWORD:-}" ]; then
+  read -r -s -p "  Password de '$PG_SUPERUSER' en $PG_HOST:$PG_PORT: " PG_SUPERUSER_PASSWORD
+  echo ""
 fi
 
-# ---------------------------------------------------------------
-# 3. Instalar dependencias
-# ---------------------------------------------------------------
-echo ""
-echo "[3/5] Instalando dependencias (express, pg, bcryptjs, jsonwebtoken)..."
-
-cd "$ROOT_DIR/api"
-npm install --save express pg bcryptjs jsonwebtoken
-cd "$ROOT_DIR"
-echo "  ✓ Dependencias instaladas"
+PGPASSWORD="$PG_SUPERUSER_PASSWORD" \
+  psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_SUPERUSER" -v ON_ERROR_STOP=1 \
+       -f "$SCRIPT_DIR/setup-dev.sql"
 
 # ---------------------------------------------------------------
-# 4. Crear rol y base de datos
+# 4. Migraciones (esquema base + deltas idempotentes)
 # ---------------------------------------------------------------
 echo ""
-echo "[4/5] Ejecutando setup-dev.sql (rol + base de datos)..."
-
-psql \
-  -h "$PG_HOST" \
-  -p "$PG_PORT" \
-  -U "$PG_SUPERUSER" \
-  -f "$SCRIPT_DIR/setup-dev.sql"
-
-echo "  ✓ Rol daval_dev y base de datos daval_db_dev listos"
-
-# ---------------------------------------------------------------
-# 5. Ejecutar migración
-# ---------------------------------------------------------------
-echo ""
-echo "[5/5] Ejecutando migrate.sql (esquema completo)..."
-
-PGPASSWORD="daval_dev_pass" psql \
-  -h "$PG_HOST" \
-  -p "$PG_PORT" \
-  -U daval_dev \
-  -d daval_db_dev \
-  -f "$SCRIPT_DIR/migrate.sql"
-
-echo "  ✓ Esquema aplicado correctamente"
+echo "[4/4] Aplicando migraciones..."
+PG_HOST="$PG_HOST" PG_PORT="$PG_PORT" \
+PG_DB=daval_db_dev PG_USER=daval_dev PGPASSWORD=daval_dev_pass \
+  bash "$SCRIPT_DIR/run-migrations.sh"
 
 # ---------------------------------------------------------------
 # .env de ejemplo (no se sobreescribe si ya existe)
@@ -107,9 +70,9 @@ echo "  ✓ Esquema aplicado correctamente"
 ENV_FILE="$ROOT_DIR/api/.env"
 if [ ! -f "$ENV_FILE" ]; then
   cat > "$ENV_FILE" <<'EOF'
-# DAVAL API — Variables de entorno DEV
 NODE_ENV=development
 PORT=3000
+TZ=America/Bogota
 
 DB_HOST=localhost
 DB_PORT=5432
@@ -120,15 +83,28 @@ DB_MAX_CONNECTIONS=10
 
 JWT_SECRET=cambia_este_secreto_en_produccion
 JWT_EXPIRES_IN=8h
+
+CORS_ORIGIN=http://localhost:5173
 EOF
-  echo ""
-  echo "  ✓ api/.env creado con valores por defecto"
+  echo "  ✓ api/.env creado"
 else
-  echo ""
-  echo "  ✓ api/.env ya existe. No se sobreescribió."
+  echo "  ✓ api/.env ya existe (no sobreescrito)"
+fi
+
+# .env del frontend
+WEB_ENV="$ROOT_DIR/.env"
+if [ ! -f "$WEB_ENV" ]; then
+  cat > "$WEB_ENV" <<'EOF'
+VITE_API_URL=http://localhost:3000
+EOF
+  echo "  ✓ .env (frontend) creado"
 fi
 
 echo ""
+echo "========================================"
+echo "  ✓ Setup dev completado"
+echo "  Backend:  cd api && npm run dev"
+echo "  Frontend: npm run dev"
 echo "========================================"
 echo "  Setup completado exitosamente"
 echo "  Iniciar API: cd api && npm run dev"

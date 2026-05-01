@@ -1,33 +1,44 @@
-set -e
+#!/usr/bin/env bash
+# =============================================================
+# DAVAL APP — Trigger deploy desde la máquina local.
+# Flujo: git push → SSH a la VM → ejecuta infra/deploy.sh.
+#
+# Requiere que el repo ya esté clonado en la VM en /var/www/davalapp/repo
+# (corre infra/setup-prod.sh la primera vez).
+#
+# Uso:
+#   bash infra/deploy-local.sh             # rama actual
+#   BRANCH=main bash infra/deploy-local.sh
+# =============================================================
 
-# Fija las credenciales de gcloud para cualquier terminal en Windows
-export CLOUDSDK_CONFIG="$HOME/AppData/Roaming/gcloud"
+set -euo pipefail
 
-VM="davalapp"
-ZONE="us-central1-a"
-PROJECT="oblicua-tests"
-REMOTE="/var/www/davalapp"
+# Credenciales gcloud en Windows (Git Bash)
+export CLOUDSDK_CONFIG="${CLOUDSDK_CONFIG:-$HOME/AppData/Roaming/gcloud}"
 
-echo "=== [1/4] Build frontend ==="
-npm run build
+VM="${VM:-davalapp}"
+ZONE="${ZONE:-us-central1-a}"
+PROJECT="${PROJECT:-oblicua-tests}"
+BRANCH="${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+HOST_IP="${HOST_IP:-34.68.133.113}"
 
-echo "=== [2/4] Preparar directorios en VM ==="
-gcloud compute ssh $VM --zone=$ZONE --project=$PROJECT \
-  --command="sudo mkdir -p $REMOTE/client $REMOTE/infra $REMOTE/upload && sudo chmod 777 $REMOTE/client $REMOTE/infra $REMOTE/upload"
+echo "=== [1/3] Push '$BRANCH' a origin ==="
+if [ -n "$(git status --porcelain)" ]; then
+  echo "  ✗ Working tree sucio. Commitea o stashea antes de desplegar." >&2
+  git status --short
+  exit 1
+fi
+git push origin "$BRANCH"
 
-echo "=== [3/4] Upload archivos ==="
-gcloud compute scp --recurse dist $VM:$REMOTE/upload/ \
-  --zone=$ZONE --project=$PROJECT
+echo "=== [2/3] Ejecutando deploy.sh en $VM ==="
+gcloud compute ssh "$VM" --zone="$ZONE" --project="$PROJECT" \
+  --command="sudo bash /var/www/davalapp/repo/infra/deploy.sh"
 
-gcloud compute scp infra/nginx.conf infra/deploy.sh $VM:$REMOTE/infra/ \
-  --zone=$ZONE --project=$PROJECT
-
-gcloud compute ssh $VM --zone=$ZONE --project=$PROJECT \
-  --command="sudo cp -r $REMOTE/upload/dist/. $REMOTE/client/ && sudo rm -rf $REMOTE/upload/dist"
-
-echo "=== [4/4] Ejecutar deploy en VM ==="
-gcloud compute ssh $VM --zone=$ZONE --project=$PROJECT \
-  --command="sudo bash $REMOTE/infra/deploy.sh"
+echo "=== [3/3] Health check ==="
+curl -fsSL --max-time 5 "http://$HOST_IP/api/health" || {
+  echo "  ⚠ Health check falló. Revisa: pm2 logs daval-api"
+  exit 1
+}
 
 echo ""
-echo "=== Listo → http://34.68.133.113 ==="
+echo "=== ✅ Deploy listo → http://$HOST_IP ==="

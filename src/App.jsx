@@ -15,6 +15,7 @@ import AdminOrderDetail from './pages/admin/AdminOrderDetail';
 import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminRoutes from './pages/admin/AdminRoutes';
 import AdminPromotions from './pages/admin/AdminPromotions';
+import AdminIntegrations from './pages/admin/AdminIntegrations';
 import ClientLayout from './pages/client/ClientLayout';
 import ClientStart from './pages/client/ClientStart';
 import ClientCatalog from './pages/client/ClientCatalog';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="pedidos" element={<Navigate to="../cotizaciones" replace />} />
             <Route path="rutas" element={<AdminRoutes />} />
             <Route path="asesores" element={<AdminUsers />} />
+            <Route path="integraciones" element={<AdminIntegrations />} />
           </Route>
           <Route
             path="/cliente"
