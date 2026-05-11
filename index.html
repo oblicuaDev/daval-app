@@ -1,36 +1,97 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-CO">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de gestión comercial Distribuciones Daval</title>
+
+    <!-- ── Primary meta ─────────────────────────────────────────────────── -->
+    <title>DAVAL — Sistema de Gestión Comercial</title>
+    <meta name="description" content="Plataforma de cotizaciones y gestión comercial para Distribuciones DAVAL. Gestión de rutas, catálogo de productos, listas de precios y sincronización con SIIGO." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- ── Canonical ────────────────────────────────────────────────────── -->
+    <link rel="canonical" href="https://app.daval.com.co/login" />
+
+    <!-- ── Open Graph ───────────────────────────────────────────────────── -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://app.daval.com.co/" />
+    <meta property="og:title"       content="DAVAL — Sistema de Gestión Comercial" />
+    <meta property="og:description" content="Cotizaciones, catálogo y gestión comercial para Distribuciones DAVAL." />
+    <meta property="og:locale"      content="es_CO" />
+    <meta property="og:image"       content="https://app.daval.com.co/og-image.png" />
+    <meta property="og:image:width"  content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- ── Twitter Card ─────────────────────────────────────────────────── -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="DAVAL — Sistema de Gestión Comercial" />
+    <meta name="twitter:description" content="Cotizaciones, catálogo y gestión comercial para Distribuciones DAVAL." />
+    <meta name="twitter:image"       content="https://app.daval.com.co/og-image.png" />
+
+    <!-- ── Favicon ──────────────────────────────────────────────────────── -->
+    <link rel="icon"             type="image/jpeg" href="/logo-daval.jpeg" />
+    <link rel="apple-touch-icon" href="/logo-daval.jpeg" />
+
+    <!-- ── Fonts: preconnect first, then non-blocking stylesheet ────────── -->
+    <!-- display=swap: text visible with fallback font while Inter downloads  -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script>
-      (function loadOblicuaCredits() {
-        var script = document.createElement('script');
-        script.src = 'https://lab.oblicua.co/credits/credits.js?v=' + Date.now();
-        script.async = true;
-        script.onload = function () {
-          try {
-            if (typeof window.setCredits === 'function') {
-              window.setCredits('#000000', 'Daval');
-            }
-          } catch (error) {
-            console.warn('Oblicua credits could not be initialized.', error);
-          }
-        };
-        script.onerror = function () {
-          console.warn('Oblicua credits script could not be loaded.');
-        };
-        document.head.appendChild(script);
-      })();
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ── Structured data (WebApplication) ─────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "DAVAL Sistema de Gestión Comercial",
+      "description": "Plataforma B2B de cotizaciones y gestión comercial para Distribuciones DAVAL, ferretera colombiana.",
+      "url": "https://app.daval.com.co",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Any",
+      "inLanguage": "es-CO",
+      "offers": { "@type": "Offer", "availability": "https://schema.org/InStock" },
+      "author": {
+        "@type": "Organization",
+        "name": "Distribuciones DAVAL",
+        "addressCountry": "CO"
+      }
+    }
     </script>
+  </head>
+
+  <body>
+    <!-- Skip-to-content link (keyboard / screen-reader users) -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:text-sm focus:font-semibold focus:rounded-lg focus:shadow-lg"
+    >
+      Ir al contenido principal
+    </a>
+
+    <div id="root"></div>
+
+    <!-- Oblicua credits — async, non-blocking, defensive -->
+    <script>
+      window.addEventListener('load', function () {
+        try {
+          var s = document.createElement('script');
+          s.src = 'https://lab.oblicua.co/credits/credits.js';
+          s.async = true;
+          s.onload = function () {
+            try {
+              if (typeof window.setCredits === 'function') window.setCredits('#000000', 'Daval');
+            } catch (_) {}
+          };
+          document.head.appendChild(s);
+        } catch (_) {}
+      });
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

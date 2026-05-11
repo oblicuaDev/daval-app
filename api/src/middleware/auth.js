@@ -1,10 +1,24 @@
 import jwt from 'jsonwebtoken';
 import { ApiError } from './error.js';
 
+function refreshSecret() {
+  return process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET + '_refresh';
+}
+
 export function signToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN ?? '8h',
   });
+}
+
+export function signRefreshToken(payload) {
+  return jwt.sign({ sub: payload.sub }, refreshSecret(), {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
+  });
+}
+
+export function verifyRefreshToken(token) {
+  return jwt.verify(token, refreshSecret());
 }
 
 export function requireAuth(req, _res, next) {

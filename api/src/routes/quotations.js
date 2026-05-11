@@ -79,15 +79,22 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     );
     const quotation = q.rows[0];
 
+    // Bulk INSERT — un solo round-trip sin importar cuántos ítems tenga la cotización
+    const itemValues = [];
+    const itemParams = [];
+    let pi = 1;
     for (const it of body.items) {
       const p = priceMap.get(it.productId);
       const priceType = p.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
-      await conn.query(
-        `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [quotation.id, it.productId, it.quantity, priceType, p.finalPrice]
-      );
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, p.finalPrice);
+      pi += 5;
     }
+    await conn.query(
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price)
+       VALUES ${itemValues.join(',')}`,
+      itemParams
+    );
 
     await conn.query('COMMIT');
     res.status(201).json(await loadQuotation(quotation.id));
@@ -221,23 +228,25 @@ async function loadQuotation(id, user = null) {
     }
   }
 
-  const items = await query(
-    `SELECT qi.id, qi.product_id, p.name AS product_name, p.sku, qi.quantity, qi.price_type,
-            qi.unit_price, qi.subtotal
-       FROM quotation_items qi
-       JOIN products p ON p.id = qi.product_id
-      WHERE qi.quotation_id = $1
-      ORDER BY qi.created_at`,
-    [id]
-  );
-  const comments = await query(
-    `SELECT c.id, c.text, c.created_at, u.id AS author_id, u.name AS author_name, u.role AS author_role
-       FROM quotation_comments c
-  LEFT JOIN users u ON u.id = c.author_id
-      WHERE c.quotation_id = $1
-      ORDER BY c.created_at`,
-    [id]
-  );
+  const [items, comments] = await Promise.all([
+    query(
+      `SELECT qi.id, qi.product_id, p.name AS product_name, p.sku, qi.quantity, qi.price_type,
+              qi.unit_price, qi.subtotal
+         FROM quotation_items qi
+         JOIN products p ON p.id = qi.product_id
+        WHERE qi.quotation_id = $1
+        ORDER BY qi.created_at`,
+      [id]
+    ),
+    query(
+      `SELECT c.id, c.text, c.created_at, u.id AS author_id, u.name AS author_name, u.role AS author_role
+         FROM quotation_comments c
+    LEFT JOIN users u ON u.id = c.author_id
+        WHERE c.quotation_id = $1
+        ORDER BY c.created_at`,
+      [id]
+    ),
+  ]);
   return {
     ...mapQuotationRow(row),
     notes: row.notes,

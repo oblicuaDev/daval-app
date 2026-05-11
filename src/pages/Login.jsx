@@ -10,59 +10,63 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 
 const REGISTER_STEPS = [
-  { id: 'empresa', label: 'Empresa', icon: Building2 },
-  { id: 'usuario', label: 'Usuario', icon: User },
+  { id: 'empresa',  label: 'Empresa',  icon: Building2 },
+  { id: 'usuario',  label: 'Usuario',  icon: User },
   { id: 'sucursal', label: 'Sucursal', icon: MapPin },
 ];
 
-const INITIAL_REGISTER_FORM = {
-  companyName: '',
-  nit: '',
-  companyEmail: '',
-  companyPhone: '',
-  userName: '',
-  userEmail: '',
-  password: '',
-  confirmPassword: '',
-  sucursalName: '',
-  city: '',
-  address: '',
+const INITIAL = {
+  companyName: '', nit: '', companyEmail: '', companyPhone: '',
+  userName: '', userEmail: '', password: '', confirmPassword: '',
+  sucursalName: '', city: '', address: '',
 };
+
+function FieldInput({ label, ...props }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-zinc-400 mb-1.5">{label}</label>
+      <input {...props} className="input" />
+    </div>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, users, registerUser } = useAuth();
   const { companies, setCompanies } = useApp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
-  const [registerStep, setRegisterStep] = useState(0);
-  const [registerForm, setRegisterForm] = useState(INITIAL_REGISTER_FORM);
-  const [registerError, setRegisterError] = useState('');
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [welcomeUserName, setWelcomeUserName] = useState('');
+  const [email, setEmail]                     = useState('');
+  const [password, setPassword]               = useState('');
+  const [showPassword, setShowPassword]       = useState(false);
+  const [error, setError]                     = useState('');
+  const [loading, setLoading]                 = useState(false);
+  const [showRegister, setShowRegister]       = useState(false);
+  const [registerStep, setRegisterStep]       = useState(0);
+  const [registerForm, setRegisterForm]       = useState(INITIAL);
+  const [registerError, setRegisterError]     = useState('');
+  const [showRegPass, setShowRegPass]         = useState(false);
+  const [welcomeName, setWelcomeName]         = useState('');
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const result = login(email, password);
+    try {
+      const result = await login(email, password);
       if (result.success) {
-        if (result.role === 'admin') navigate('/admin');
+        if (result.role === 'admin')        navigate('/admin');
         else if (result.role === 'advisor') navigate('/asesor');
-        else if (result.role === 'client') navigate('/cliente');
+        else if (result.role === 'client')  navigate('/cliente');
       } else {
         setError('Credenciales incorrectas. Verifica tu email y contraseña.');
       }
+    } catch {
+      setError('Credenciales incorrectas. Verifica tu email y contraseña.');
+    } finally {
       setLoading(false);
-    }, 400);
+    }
   }
 
-  function updateRegisterField(field, value) {
+  function updateField(field, value) {
     setRegisterError('');
     setRegisterForm(prev => ({ ...prev, [field]: value }));
   }
@@ -70,182 +74,139 @@ export default function Login() {
   function closeRegister() {
     setShowRegister(false);
     setRegisterStep(0);
-    setRegisterForm(INITIAL_REGISTER_FORM);
+    setRegisterForm(INITIAL);
     setRegisterError('');
-    setShowRegisterPassword(false);
-  }
-
-  function handleWelcomeContinue() {
-    setWelcomeUserName('');
-    navigate('/cliente');
+    setShowRegPass(false);
   }
 
   function validateStep(step = registerStep) {
+    const f = registerForm;
     if (step === 0) {
-      if (!registerForm.companyName || !registerForm.nit || !registerForm.companyEmail || !registerForm.companyPhone) {
-        return 'Completa la información principal de la empresa.';
-      }
+      if (!f.companyName || !f.nit || !f.companyEmail || !f.companyPhone)
+        return 'Completa la información de la empresa.';
     }
     if (step === 1) {
-      if (!registerForm.userName || !registerForm.userEmail || !registerForm.password || !registerForm.confirmPassword) {
-        return 'Completa los datos del usuario administrador.';
-      }
-      if (registerForm.password.length < 6) return 'La contraseña debe tener mínimo 6 caracteres.';
-      if (registerForm.password !== registerForm.confirmPassword) return 'Las contraseñas no coinciden.';
-      if (users.some(user => user.email.toLowerCase() === registerForm.userEmail.toLowerCase())) {
-        return 'Ya existe un usuario registrado con ese correo.';
-      }
+      if (!f.userName || !f.userEmail || !f.password || !f.confirmPassword)
+        return 'Completa los datos del usuario.';
+      if (f.password.length < 6) return 'La contraseña debe tener mínimo 6 caracteres.';
+      if (f.password !== f.confirmPassword) return 'Las contraseñas no coinciden.';
+      if (users.some(u => u.email.toLowerCase() === f.userEmail.toLowerCase()))
+        return 'Ya existe un usuario con ese correo.';
     }
     if (step === 2) {
-      if (!registerForm.sucursalName || !registerForm.city || !registerForm.address) {
-        return 'Completa los datos de la primera sucursal.';
-      }
+      if (!f.sucursalName || !f.city || !f.address)
+        return 'Completa los datos de la sucursal.';
     }
     return '';
   }
 
-  function handleNextStep() {
-    const message = validateStep();
-    if (message) {
-      setRegisterError(message);
-      return;
-    }
-    setRegisterStep(step => Math.min(step + 1, REGISTER_STEPS.length - 1));
+  function handleNext() {
+    const msg = validateStep();
+    if (msg) { setRegisterError(msg); return; }
+    setRegisterStep(s => Math.min(s + 1, REGISTER_STEPS.length - 1));
   }
 
   function handleRegisterSubmit(e) {
     e.preventDefault();
-    const currentMessage = validateStep();
-    const previousMessages = REGISTER_STEPS
-      .map((_, index) => validateStep(index))
-      .filter(Boolean);
-    const message = currentMessage || previousMessages[0];
-    if (message) {
-      setRegisterError(message);
-      return;
-    }
+    const msg = validateStep() || REGISTER_STEPS.map((_, i) => validateStep(i)).find(Boolean);
+    if (msg) { setRegisterError(msg); return; }
 
-    const today = new Date().toISOString().split('T')[0];
-    const newCompanyId = Math.max(0, ...companies.map(company => company.id)) + 1;
-    const newUserId = Math.max(0, ...users.map(user => user.id)) + 1;
-    const branchAddress = `${registerForm.address}, ${registerForm.city}`;
-    const newCompany = {
-      id: newCompanyId,
-      name: registerForm.companyName.trim(),
-      nit: registerForm.nit.trim(),
-      email: registerForm.companyEmail.trim(),
-      phone: registerForm.companyPhone.trim(),
-      address: branchAddress,
-      active: true,
-      sucursales: [
-        {
-          id: 1,
-          name: registerForm.sucursalName.trim(),
-          address: branchAddress,
-          city: registerForm.city.trim(),
-          routeId: null,
-          advisorId: null,
-          active: true,
-        },
-      ],
-    };
-    const newUser = {
-      id: newUserId,
-      name: registerForm.userName.trim(),
-      email: registerForm.userEmail.trim(),
-      password: registerForm.password,
-      role: 'client',
-      priceListId: 1,
-      companyId: newCompanyId,
-      sucursalId: 1,
-      contactName: registerForm.userName.trim(),
-      phone: registerForm.companyPhone.trim(),
-      address: branchAddress,
-      initials: registerForm.userName.trim().substring(0, 2).toUpperCase(),
-      createdAt: today,
-    };
+    const today       = new Date().toISOString().split('T')[0];
+    const newCompanyId = Math.max(0, ...companies.map(c => c.id)) + 1;
+    const newUserId    = Math.max(0, ...users.map(u => u.id)) + 1;
+    const addr         = `${registerForm.address}, ${registerForm.city}`;
 
-    setCompanies(prev => [...prev, newCompany]);
-    registerUser(newUser);
-    setWelcomeUserName(newUser.name);
+    setCompanies(prev => [...prev, {
+      id: newCompanyId, name: registerForm.companyName.trim(), nit: registerForm.nit.trim(),
+      email: registerForm.companyEmail.trim(), phone: registerForm.companyPhone.trim(),
+      address: addr, active: true,
+      sucursales: [{ id: 1, name: registerForm.sucursalName.trim(), address: addr,
+        city: registerForm.city.trim(), routeId: null, advisorId: null, active: true }],
+    }]);
+    registerUser({
+      id: newUserId, name: registerForm.userName.trim(), email: registerForm.userEmail.trim(),
+      password: registerForm.password, role: 'client', priceListId: 1,
+      companyId: newCompanyId, sucursalId: 1, contactName: registerForm.userName.trim(),
+      phone: registerForm.companyPhone.trim(), address: addr,
+      initials: registerForm.userName.trim().substring(0, 2).toUpperCase(), createdAt: today,
+    });
+    setWelcomeName(registerForm.userName.trim());
     closeRegister();
   }
 
-  const currentRegisterStep = REGISTER_STEPS[registerStep];
-  const CurrentStepIcon = currentRegisterStep.icon;
+  const CurrentStepIcon = REGISTER_STEPS[registerStep].icon;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4">
-      <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <img
-            src={logo}
-            alt="Daval"
-            className="h-[70px] w-auto object-contain mx-auto mb-5"
-          />
-          <p className="text-gray-400 text-sm">Sistema de gestión comercial Distribuciones Daval</p>
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 relative overflow-hidden">
+
+      {/* Ambient gradient */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-900/10 blur-[120px]" />
+      </div>
+
+      {/* Login card */}
+      <div className="relative w-full max-w-[380px] animate-scale-in">
+
+        {/* Brand mark */}
+        <div className="text-center mb-7">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-card mb-4 overflow-hidden">
+            <img src={logo} alt="DAVAL" className="w-full h-full object-contain p-1" />
+          </div>
+          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight">Distribuciones DAVAL</h1>
+          <p className="text-xs text-zinc-600 mt-0.5">Sistema de gestión comercial</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-gray-100 mb-6">Iniciar Sesión</h2>
+        <div className="card p-7 shadow-elevated">
+          <h2 className="text-sm font-semibold text-zinc-300 mb-5">Iniciar sesión</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Correo Electrónico
-              </label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Correo electrónico</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 w-3.5 h-3.5 pointer-events-none" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  placeholder="usuario@oblicua.com"
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="usuario@empresa.com"
+                  className="input pl-9"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Contraseña
-              </label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Contraseña</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 w-3.5 h-3.5 pointer-events-none" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="input pl-9 pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-950 border border-red-800 text-red-300 text-sm px-4 py-3 rounded-lg">
+              <div className="flex items-start gap-2 bg-red-950/50 border border-red-800/50 text-red-300 text-xs px-3 py-2.5 rounded-lg animate-fade-in">
+                <X className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full mt-1">
               {loading ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <LogIn className="w-4 h-4" />
               )}
@@ -253,225 +214,156 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-700">
+          <div className="mt-5 pt-5 border-t border-zinc-800/60">
             <button
               type="button"
               onClick={() => setShowRegister(true)}
-              className="w-full flex items-center justify-center gap-2 border border-blue-800 bg-blue-950 text-blue-300 hover:bg-blue-900 hover:text-blue-200 font-semibold py-2.5 px-4 rounded-lg transition"
+              className="btn-secondary w-full text-xs"
             >
-              <UserPlus className="w-4 h-4" />
-              Quiero registrarme como cliente
+              <UserPlus className="w-3.5 h-3.5" />
+              Registrarme como cliente
             </button>
           </div>
         </div>
 
+        <p className="text-center text-[10px] text-zinc-700 mt-5">
+          Distribuciones DAVAL · Colombia
+        </p>
       </div>
 
+      {/* ── Register modal ─────────────────────────── */}
       {showRegister && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl shadow-modal overflow-hidden animate-scale-in">
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-950 text-blue-300 flex items-center justify-center">
-                  <CurrentStepIcon className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-lg bg-brand-900/60 border border-brand-800/50 flex items-center justify-center">
+                  <CurrentStepIcon className="w-4 h-4 text-brand-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-100">Registro de cliente</h2>
-                  <p className="text-xs text-gray-500">{currentRegisterStep.label}</p>
+                  <p className="text-sm font-semibold text-zinc-100">Registro de cliente</p>
+                  <p className="text-[10px] text-zinc-600">{REGISTER_STEPS[registerStep].label}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeRegister}
-                className="p-1.5 text-gray-500 hover:text-gray-300 transition"
-              >
-                <X className="w-5 h-5" />
+              <button onClick={closeRegister} className="btn-ghost p-1.5 text-zinc-600">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* Step indicators */}
             <div className="px-6 pt-5">
               <div className="grid grid-cols-3 gap-2">
-                {REGISTER_STEPS.map((step, index) => {
+                {REGISTER_STEPS.map((step, i) => {
                   const StepIcon = step.icon;
-                  const isActive = index === registerStep;
-                  const isDone = index < registerStep;
+                  const isActive = i === registerStep;
+                  const isDone   = i < registerStep;
                   return (
                     <div
                       key={step.id}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
-                        isActive
-                          ? 'border-blue-700 bg-blue-950 text-blue-200'
-                          : isDone
-                          ? 'border-emerald-800 bg-emerald-950 text-emerald-300'
-                          : 'border-gray-700 bg-gray-900 text-gray-500'
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all duration-200 ${
+                        isActive ? 'border-brand-700/60 bg-brand-950/50 text-brand-300'
+                        : isDone ? 'border-emerald-800/50 bg-emerald-950/40 text-emerald-400'
+                        : 'border-zinc-800 bg-zinc-900/50 text-zinc-600'
                       }`}
                     >
-                      {isDone ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <StepIcon className="w-4 h-4 flex-shrink-0" />}
-                      <span className="text-xs font-semibold truncate">{step.label}</span>
+                      {isDone
+                        ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                        : <StepIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                      }
+                      <span className="text-xs font-medium truncate">{step.label}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <form onSubmit={handleRegisterSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4">
               {registerStep === 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Nombre de la empresa *</label>
-                    <input
-                      value={registerForm.companyName}
-                      onChange={e => updateRegisterField('companyName', e.target.value)}
-                      placeholder="Ferretería o empresa cliente"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <FieldInput label="Nombre de la empresa *" value={registerForm.companyName}
+                      onChange={e => updateField('companyName', e.target.value)}
+                      placeholder="Ferretería El Perno S.A.S." />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">NIT *</label>
-                    <input
-                      value={registerForm.nit}
-                      onChange={e => updateRegisterField('nit', e.target.value)}
-                      placeholder="900.000.000-0"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Teléfono *</label>
-                    <input
-                      value={registerForm.companyPhone}
-                      onChange={e => updateRegisterField('companyPhone', e.target.value)}
-                      placeholder="300-000-0000"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  <FieldInput label="NIT *" value={registerForm.nit}
+                    onChange={e => updateField('nit', e.target.value)} placeholder="900.000.000-0" />
+                  <FieldInput label="Teléfono *" value={registerForm.companyPhone}
+                    onChange={e => updateField('companyPhone', e.target.value)} placeholder="300-000-0000" />
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Correo de la empresa *</label>
-                    <input
-                      type="email"
-                      value={registerForm.companyEmail}
-                      onChange={e => updateRegisterField('companyEmail', e.target.value)}
-                      placeholder="compras@empresa.com"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <FieldInput label="Correo de la empresa *" type="email" value={registerForm.companyEmail}
+                      onChange={e => updateField('companyEmail', e.target.value)} placeholder="compras@empresa.com" />
                   </div>
                 </div>
               )}
 
               {registerStep === 1 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Nombre del usuario *</label>
-                    <input
-                      value={registerForm.userName}
-                      onChange={e => updateRegisterField('userName', e.target.value)}
-                      placeholder="Nombre y apellido"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <FieldInput label="Nombre del usuario *" value={registerForm.userName}
+                      onChange={e => updateField('userName', e.target.value)} placeholder="Nombre completo" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Correo de acceso *</label>
-                    <input
-                      type="email"
-                      value={registerForm.userEmail}
-                      onChange={e => updateRegisterField('userEmail', e.target.value)}
-                      placeholder="usuario@empresa.com"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <FieldInput label="Correo de acceso *" type="email" value={registerForm.userEmail}
+                      onChange={e => updateField('userEmail', e.target.value)} placeholder="usuario@empresa.com" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Contraseña *</label>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Contraseña *</label>
                     <div className="relative">
-                      <input
-                        type={showRegisterPassword ? 'text' : 'password'}
-                        value={registerForm.password}
-                        onChange={e => updateRegisterField('password', e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm pl-3 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegisterPassword(value => !value)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                      >
-                        {showRegisterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <input type={showRegPass ? 'text' : 'password'} value={registerForm.password}
+                        onChange={e => updateField('password', e.target.value)}
+                        placeholder="••••••••" className="input pr-10" />
+                      <button type="button" onClick={() => setShowRegPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors">
+                        {showRegPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Confirmar contraseña *</label>
-                    <input
-                      type={showRegisterPassword ? 'text' : 'password'}
-                      value={registerForm.confirmPassword}
-                      onChange={e => updateRegisterField('confirmPassword', e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  <FieldInput label="Confirmar contraseña *"
+                    type={showRegPass ? 'text' : 'password'} value={registerForm.confirmPassword}
+                    onChange={e => updateField('confirmPassword', e.target.value)} placeholder="••••••••" />
                 </div>
               )}
 
               {registerStep === 2 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Nombre de la sucursal *</label>
-                    <input
-                      value={registerForm.sucursalName}
-                      onChange={e => updateRegisterField('sucursalName', e.target.value)}
-                      placeholder="Principal"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <FieldInput label="Nombre de la sucursal *" value={registerForm.sucursalName}
+                      onChange={e => updateField('sucursalName', e.target.value)} placeholder="Principal" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Ciudad *</label>
-                    <input
-                      value={registerForm.city}
-                      onChange={e => updateRegisterField('city', e.target.value)}
-                      placeholder="Bogotá"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Dirección *</label>
-                    <input
-                      value={registerForm.address}
-                      onChange={e => updateRegisterField('address', e.target.value)}
-                      placeholder="Cra 10 # 5-23"
-                      className="w-full bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-500 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  <FieldInput label="Ciudad *" value={registerForm.city}
+                    onChange={e => updateField('city', e.target.value)} placeholder="Bogotá" />
+                  <FieldInput label="Dirección *" value={registerForm.address}
+                    onChange={e => updateField('address', e.target.value)} placeholder="Cra 10 # 5-23" />
                 </div>
               )}
 
               {registerError && (
-                <div className="bg-red-950 border border-red-800 text-red-300 text-sm px-4 py-3 rounded-lg">
+                <div className="flex items-start gap-2 bg-red-950/50 border border-red-800/50 text-red-300 text-xs px-3 py-2.5 rounded-lg animate-fade-in">
+                  <X className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                   {registerError}
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-3 pt-2">
+              <div className="flex items-center justify-between gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={() => registerStep === 0 ? closeRegister() : setRegisterStep(step => step - 1)}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-600 text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-700 transition"
+                  onClick={() => registerStep === 0 ? closeRegister() : setRegisterStep(s => s - 1)}
+                  className="btn-secondary text-xs px-4"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   {registerStep === 0 ? 'Cancelar' : 'Atrás'}
                 </button>
+
                 {registerStep < REGISTER_STEPS.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
-                  >
+                  <button type="button" onClick={handleNext} className="btn-primary text-xs px-4">
                     Continuar
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
-                  <button
-                    type="submit"
-                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
+                  <button type="submit" className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-lg px-4 py-2.5 text-xs transition-all duration-150 active:scale-[0.98]">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                     Crear cuenta
                   </button>
                 )}
@@ -481,23 +373,24 @@ export default function Login() {
         </div>
       )}
 
-      {welcomeUserName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-6 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-950 text-emerald-300 flex items-center justify-center mx-auto mb-5 border border-emerald-800">
-              <CheckCircle2 className="w-8 h-8" />
+      {/* ── Welcome modal ──────────────────────────── */}
+      {welcomeName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-modal p-7 text-center animate-scale-in">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center mx-auto mb-5">
+              <CheckCircle2 className="w-7 h-7 text-emerald-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-100 mb-2">Tu cuenta ha sido creada, te damos la bienvenida</h2>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              Hola {welcomeUserName}. En esta plataforma podrás solicitar tus cotizaciones de manera autónoma antes de que tu ruta inicie por parte de DAVAL, revisar tu historial y dejar registrada la información de tu empresa y sucursales para agilizar la atención comercial.
+            <h2 className="text-lg font-bold text-zinc-50 mb-2 tracking-tight">¡Bienvenido, {welcomeName}!</h2>
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              Tu cuenta ha sido creada. Ahora puedes solicitar cotizaciones de manera autónoma antes del cierre de tu ruta.
             </p>
             <button
               type="button"
-              onClick={handleWelcomeContinue}
-              className="mt-6 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition"
+              onClick={() => { setWelcomeName(''); navigate('/cliente'); }}
+              className="btn-primary w-full mt-6 text-sm"
             >
               <ClipboardList className="w-4 h-4" />
-              Empezar a solicitar cotizaciones
+              Ir al catálogo
             </button>
           </div>
         </div>

@@ -1,13 +1,173 @@
+/* Inter loaded via <link> in index.html (display=swap, non-blocking) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-gray-900 text-gray-100;
-    font-family: 'Montserrat', sans-serif;
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Prevent font size inflation on iOS */
+    -webkit-text-size-adjust: 100%;
   }
+
+  body {
+    @apply bg-zinc-950 text-zinc-50;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'cv01';
+  }
+
+  /* Accessible focus — visible only with keyboard, hidden for mouse */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-zinc-950;
+  }
+  :focus:not(:focus-visible) {
+    @apply outline-none;
+  }
+
+  /* Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   input, select, textarea {
     color-scheme: dark;
   }
+
+  /* Thin, elegant scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-zinc-800 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-zinc-700; }
+
+  /* Avoid CLS: reserve space for images before they load */
+  img { @apply max-w-full; height: auto; }
+
+  /* Smooth tap highlight on mobile */
+  * { -webkit-tap-highlight-color: transparent; }
+}
+
+@layer components {
+
+  /* ── Skeleton loader ───────────────────────────── */
+  .skeleton {
+    @apply relative overflow-hidden bg-zinc-800/60 rounded-lg;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255,255,255,0.04) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* ── Input field ───────────────────────────────── */
+  .input {
+    @apply w-full bg-zinc-900 border border-zinc-800 text-zinc-50
+           placeholder-zinc-600 rounded-lg text-sm px-3 py-2.5
+           focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/70
+           transition-all duration-150 hover:border-zinc-700;
+  }
+
+  /* ── Buttons ───────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-brand-600 hover:bg-brand-500
+           text-white font-semibold rounded-lg
+           px-4 py-2.5 text-sm
+           transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2 focus:ring-offset-zinc-950
+           disabled:opacity-50 disabled:cursor-not-allowed
+           active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-zinc-800 hover:bg-zinc-700
+           border border-zinc-700 hover:border-zinc-600
+           text-zinc-200 font-medium rounded-lg
+           px-4 py-2.5 text-sm
+           transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-zinc-500/30 focus:ring-offset-2 focus:ring-offset-zinc-950
+           active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/70
+           rounded-lg px-3 py-2 text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+  }
+
+  /* ── Card ──────────────────────────────────────── */
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-xl shadow-card;
+  }
+
+  /* ── Badge ─────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* ── Nav item (sidebar) ─────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium
+           text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/70
+           transition-all duration-150 cursor-pointer;
+  }
+  .nav-item-active {
+    @apply text-zinc-50 bg-zinc-800;
+  }
+
+  /* ── Table ─────────────────────────────────────── */
+  .table-head-cell {
+    @apply text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider px-4 py-3;
+  }
+  .table-cell {
+    @apply px-4 py-3 text-sm text-zinc-300;
+  }
+
+  /* ── Screen reader only (with keyboard reveal) ─── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .focus\:not-sr-only:focus {
+    position: fixed;
+    width: auto;
+    height: auto;
+    padding: revert;
+    margin: revert;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+}
+
+/* ── Keyframe animations ────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Print: hide navigation, show content */
+@media print {
+  header, aside, nav, footer, [aria-label="Carrito"] { display: none !important; }
+  main { padding: 0 !important; }
+  body { background: white !important; color: black !important; }
 }

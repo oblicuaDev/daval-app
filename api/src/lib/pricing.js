@@ -14,16 +14,16 @@ import { query } from '../config/db.js';
 export async function resolvePrices({ productIds, priceListId, clientId }) {
   if (!productIds.length) return new Map();
 
-  // 1. Resolve the price list (caller's, or default)
-  let priceList = null;
-  if (priceListId) {
-    const r = await query('SELECT id, multiplier FROM price_lists WHERE id=$1 AND active=TRUE', [priceListId]);
-    priceList = r.rows[0] ?? null;
-  }
-  if (!priceList) {
-    const r = await query('SELECT id, multiplier FROM price_lists WHERE is_default=TRUE AND active=TRUE LIMIT 1');
-    priceList = r.rows[0] ?? null;
-  }
+  // 1. Resolve the price list (caller's, or default) — single query with fallback
+  const plr = await query(
+    `SELECT id, multiplier FROM price_lists
+      WHERE active = TRUE
+        AND (id = $1 OR (is_default = TRUE AND $1 IS NULL))
+      ORDER BY (id = $1) DESC
+      LIMIT 1`,
+    [priceListId ?? null]
+  );
+  let priceList = plr.rows[0] ?? null;
 
   // 2. Per-product price list override + base price
   const priceRows = await query(

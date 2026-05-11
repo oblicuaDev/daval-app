@@ -7,4 +7,9 @@ export const productsApi = {
     apiClient.post('/products', body).then(r => r.data),
   update: (id, body) =>
     apiClient.put(`/products/${id}`, body).then(r => r.data),
+  uploadImage: (id, file) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    return apiClient.post(`/products/${id}/image`, fd).then(r => r.data); // { imageUrl }
+  },
 };

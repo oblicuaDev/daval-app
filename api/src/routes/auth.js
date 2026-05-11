@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { query } from '../config/db.js';
 import { ApiError } from '../middleware/error.js';
-import { requireAuth, signToken } from '../middleware/auth.js';
+import { requireAuth, signToken, signRefreshToken, verifyRefreshToken } from '../middleware/auth.js';
 import { asyncHandler } from '../lib/validate.js';
 
 const router = Router();
@@ -36,7 +36,31 @@ router.post('/login', asyncHandler(async (req, res) => {
   if (!ok) throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
 
   const token = signToken({ sub: u.id, role: u.role, email: u.email });
-  res.json({ token, user: userPublic(u) });
+  const refreshToken = signRefreshToken({ sub: u.id });
+  res.json({ token, refreshToken, user: userPublic(u) });
+}));
+
+router.post('/refresh', asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body ?? {};
+  if (!refreshToken) throw new ApiError(400, 'MISSING_TOKEN', 'refreshToken required');
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch {
+    throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
+  }
+
+  const r = await query(
+    `SELECT id, name, email, role, active, company_id, branch_id FROM users WHERE id = $1`,
+    [payload.sub]
+  );
+  const u = r.rows[0];
+  if (!u || !u.active) throw new ApiError(401, 'USER_INACTIVE', 'User not found or inactive');
+
+  const token = signToken({ sub: u.id, role: u.role, email: u.email });
+  const newRefreshToken = signRefreshToken({ sub: u.id });
+  res.json({ token, refreshToken: newRefreshToken, user: userPublic(u) });
 }));
 
 router.get('/me', requireAuth, asyncHandler(async (req, res) => {

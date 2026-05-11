@@ -1,6 +1,10 @@
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import authRouter from './routes/auth.js';
 import productsRouter from './routes/products.js';
@@ -14,6 +18,12 @@ const app = express();
 
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*', credentials: true }));
 app.use(express.json({ limit: '2mb' }));
+
+// Serve uploaded product images as public static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  maxAge: '7d',
+  immutable: false,
+}));
 
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 

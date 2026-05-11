@@ -1,10 +1,13 @@
 import { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { z } from 'zod';
 import { query } from '../config/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../lib/validate.js';
 import { resolvePrices } from '../lib/pricing.js';
 import { ApiError } from '../middleware/error.js';
+import { handleUpload, UPLOADS_DIR } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -19,8 +22,8 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const filters = [];
   const params = [];
   if (active !== undefined) { params.push(active === 'true'); filters.push(`p.active = $${params.length}`); }
-  if (categoryId)           { params.push(categoryId);        filters.push(`p.category_id = $${params.length}`); }
-  if (search)               { params.push(`%${search}%`);     filters.push(`(p.name ILIKE $${params.length} OR p.sku ILIKE $${params.length})`); }
+  if (categoryId) { params.push(categoryId); filters.push(`p.category_id = $${params.length}`); }
+  if (search) { params.push(`%${search}%`); filters.push(`(p.name ILIKE $${params.length} OR p.sku ILIKE $${params.length})`); }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
   const r = await query(
@@ -79,18 +82,51 @@ const CreateSchema = z.object({
   imageUrl: z.string().optional(),
   basePrice: z.number().nonnegative().default(0),
   active: z.boolean().default(true),
+  description: z.string().optional(),
 });
 
 router.post('/', requireAuth, requireRole('admin'), asyncHandler(async (req, res) => {
   const b = CreateSchema.parse(req.body);
   const r = await query(
-    `INSERT INTO products (name, sku, category_id, unit, stock, quality, image_url, base_price, active)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    `INSERT INTO products (name, sku, category_id, unit, stock, quality, image_url, base_price, active, description)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, $10)
      RETURNING id`,
     [b.name, b.sku, b.categoryId ?? null, b.unit ?? null, b.stock, b.quality ?? null,
-     b.imageUrl ?? null, b.basePrice, b.active]
+    b.imageUrl ?? null, b.basePrice, b.active, b.description ?? null]
   );
   res.status(201).json({ id: r.rows[0].id });
+}));
+
+// Admin: upload product image
+// POST /products/:id/image   multipart/form-data field: image
+router.post('/:id/image', requireAuth, requireRole('admin'), handleUpload, asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'NO_FILE', 'No image file provided');
+
+  const imageUrl = `/uploads/${req.file.filename}`;
+
+  // Fetch old image URL before updating
+  const old = await query('SELECT image_url FROM products WHERE id = $1', [req.params.id]);
+  if (!old.rows[0]) {
+    fs.unlink(req.file.path, () => { });
+    throw new ApiError(404, 'NOT_FOUND', 'Product not found');
+  }
+
+  const r = await query(
+    'UPDATE products SET image_url = $1, updated_at = NOW() WHERE id = $2 RETURNING id, image_url',
+    [imageUrl, req.params.id]
+  );
+  if (!r.rowCount) {
+    fs.unlink(req.file.path, () => { });
+    throw new ApiError(404, 'NOT_FOUND', 'Product not found');
+  }
+
+  // Delete previous local upload (ignore errors — external URLs are left alone)
+  const oldUrl = old.rows[0].image_url ?? '';
+  if (oldUrl.startsWith('/uploads/')) {
+    fs.unlink(path.join(UPLOADS_DIR, path.basename(oldUrl)), () => { });
+  }
+
+  res.json({ imageUrl });
 }));
 
 // Admin: update
@@ -99,8 +135,10 @@ router.put('/:id', requireAuth, requireRole('admin'), asyncHandler(async (req, r
   const b = UpdateSchema.parse(req.body);
   const set = [];
   const params = [];
-  const map = { name:'name', sku:'sku', categoryId:'category_id', unit:'unit', stock:'stock',
-                quality:'quality', imageUrl:'image_url', basePrice:'base_price', active:'active' };
+  const map = {
+    name: 'name', sku: 'sku', categoryId: 'category_id', unit: 'unit', stock: 'stock',
+    quality: 'quality', imageUrl: 'image_url', basePrice: 'base_price', active: 'active'
+  };
   for (const [k, col] of Object.entries(map)) {
     if (b[k] !== undefined) { params.push(b[k]); set.push(`${col} = $${params.length}`); }
   }

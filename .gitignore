@@ -15,3 +15,15 @@ api/.env.*
 # Logs
 *.log
 logs/
+
+
+CLAUDE.md
+ACCESSIBILITY_AUDIT.md
+PERFORMANCE_AUDIT.md
+SEO_AUDIT.md
+AUTH_FLOW.md
+UPLOAD_FLOW.md
+
+daval_api.postman_collection.json
+
+infra

@@ -17,8 +17,9 @@ export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ email, password }) => authApi.login(email, password),
-    onSuccess: ({ token, user }) => {
+    onSuccess: ({ token, refreshToken, user }) => {
       tokenStore.set(token);
+      if (refreshToken) tokenStore.setRefresh(refreshToken);
       qc.setQueryData(['auth', 'me'], user);
     },
   });

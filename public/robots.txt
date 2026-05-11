@@ -1,0 +1,17 @@
+# Robots.txt — DAVAL Sistema de Gestión Comercial
+# App B2B privada: solo /login es indexable
+
+User-agent: *
+# Áreas autenticadas — no indexar
+Disallow: /admin/
+Disallow: /asesor/
+Disallow: /cliente/
+
+# Login page — permitir para SEO de marca
+Allow: /login
+Allow: /
+
+# Evitar duplicados por trailing slash
+Disallow: /login/
+
+Sitemap: https://app.daval.com.co/sitemap.xml

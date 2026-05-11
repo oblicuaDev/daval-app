@@ -1,15 +1,23 @@
 import axios from 'axios';
 
 const TOKEN_KEY = 'daval.token';
+const REFRESH_KEY = 'daval.refresh_token';
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (t) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  getRefresh: () => localStorage.getItem(REFRESH_KEY),
+  setRefresh: (t) => localStorage.setItem(REFRESH_KEY, t),
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  },
 };
 
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  baseURL: BASE_URL,
   timeout: 15000,
 });
 
@@ -19,7 +27,6 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Normalize error envelope so hooks/components don't parse axios shapes.
 export class ApiError extends Error {
   constructor({ status, code, message, details }) {
     super(message);
@@ -29,14 +36,63 @@ export class ApiError extends Error {
   }
 }
 
+// -- Refresh token queue --
+let isRefreshing = false;
+let refreshQueue = [];
+
+function flushQueue(error, token = null) {
+  refreshQueue.forEach(({ resolve, reject }) =>
+    error ? reject(error) : resolve(token)
+  );
+  refreshQueue = [];
+}
+
+function forceLogout() {
+  tokenStore.clear();
+  window.dispatchEvent(new CustomEvent('daval:logout'));
+}
+
 apiClient.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      tokenStore.clear();
-      // Bubble up; useAuth listens via React Query and clears user.
-      window.dispatchEvent(new CustomEvent('daval:logout'));
+  async (err) => {
+    const original = err.config;
+
+    if (err.response?.status === 401 && !original._retry) {
+      const refreshToken = tokenStore.getRefresh();
+      const accessToken = tokenStore.get();
+
+      // No tokens at all → mock-auth mode, don't force logout
+      if (!refreshToken && !accessToken) {
+        // fall through to rejection below
+      } else if (!refreshToken) {
+        forceLogout();
+      } else if (isRefreshing) {
+        // Another request is already refreshing — queue this one
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then((newToken) => {
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(original);
+        });
+      } else {
+        original._retry = true;
+        isRefreshing = true;
+        try {
+          const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+          tokenStore.set(data.token);
+          if (data.refreshToken) tokenStore.setRefresh(data.refreshToken);
+          flushQueue(null, data.token);
+          original.headers.Authorization = `Bearer ${data.token}`;
+          return apiClient(original);
+        } catch (refreshErr) {
+          flushQueue(refreshErr, null);
+          forceLogout();
+        } finally {
+          isRefreshing = false;
+        }
+      }
     }
+
     const data = err.response?.data ?? {};
     return Promise.reject(new ApiError({
       status: err.response?.status ?? 0,
