@@ -18,26 +18,26 @@ INSERT INTO categories (id, name, description, active) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------
--- Usuarios (bcrypt $2b$10$ hash de contraseñas de ejemplo)
--- admin123  → $2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
--- asesor123 → $2b$10$v8EigN9.zIqKqAjJzGIJO.GBdLPUWdCWR0pxiVPrr7xqWqh2g1U2
--- cliente123→ $2b$10$F1BV.nz0bAixvTCt.n9mEuK4TwDYMFV9x1VPaZk3Nkp1y8rr9I.m
+-- Usuarios (bcrypt $2a$10$ hash de contraseñas de ejemplo)
+-- admin123  → $2a$10$Fdik66IkFQXteGjT/LcXBOwnwhX99x3.9rSXcmxPkI5TizT/AZ93a
+-- asesor123 → $2a$10$K/..8fjH/D2kGKXW3oxGheP4YQkT9DQFgq3HHw.EKGEf4ydJbXBEq
+-- cliente123→ $2a$10$yLppLJFlKoijU5GZwkjSYurdHEb2c3RO1wDSqnDQD4VJFqLUCSDiS
 -- NOTA: regenerar con bcrypt en producción
 -- ----------------------------------------------------------------
 INSERT INTO users (id, name, email, password_hash, role, active, company_id, branch_id) VALUES
   ('22222222-0001-0000-0000-000000000001',
    'Admin Daval', 'admin@daval.com',
-   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+   '$2a$10$Fdik66IkFQXteGjT/LcXBOwnwhX99x3.9rSXcmxPkI5TizT/AZ93a',
    'admin', TRUE, NULL, NULL),
 
   ('22222222-0002-0000-0000-000000000001',
    'Carlos Asesor', 'asesor@daval.com',
-   '$2b$10$v8EigN9.zIqKqAjJzGIJO.GBdLPUWdCWR0pxiVPrr7xqWqh2g1U2',
+   '$2a$10$K/..8fjH/D2kGKXW3oxGheP4YQkT9DQFgq3HHw.EKGEf4ydJbXBEq',
    'advisor', TRUE, NULL, NULL),
 
   ('22222222-0003-0000-0000-000000000001',
    'Juan Cliente', 'cliente@daval.com',
-   '$2b$10$F1BV.nz0bAixvTCt.n9mEuK4TwDYMFV9x1VPaZk3Nkp1y8rr9I.m',
+   '$2a$10$yLppLJFlKoijU5GZwkjSYurdHEb2c3RO1wDSqnDQD4VJFqLUCSDiS',
    'client', TRUE, NULL, NULL)
 ON CONFLICT (id) DO NOTHING;
 

@@ -53,7 +53,7 @@ function Modal({ title, onClose, children }) {
 
 export default function AdminProducts() {
   const qc = useQueryClient();
-  const { data: products = [], isLoading } = useProducts({ active: false });
+  const { data: products = [], isLoading } = useProducts({ active: true });
   const { data: categories = [] } = useCategories();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();

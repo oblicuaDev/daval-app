@@ -30,6 +30,8 @@ async function authenticate(settings) {
   if (!settings.username || !settings.access_key) {
     throw new ApiError(400, 'SIIGO_NOT_CONFIGURED', 'Falta username o access_key en siigo_settings.');
   }
+  console.log(`${settings.base_url}/auth`);
+  
   const url = `${settings.base_url}/auth`;
   const res = await fetch(url, {
     method: 'POST',

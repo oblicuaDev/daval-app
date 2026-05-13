@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: daval-api
+    runtime: node
+    rootDir: api
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: America/Bogota
+      # Las siguientes variables se configuran manualmente en el dashboard de Render:
+      # DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, CORS_ORIGIN

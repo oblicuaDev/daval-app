@@ -13,6 +13,7 @@ import routesRouter from './routes/routes.js';
 import adminRouter from './routes/admin.js';
 import siigoRouter from './routes/siigo.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import pool from './config/db.js';
 
 const app = express();
 
@@ -25,7 +26,14 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   immutable: false,
 }));
 
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok: true, ts: new Date().toISOString(), db: 'connected' });
+  } catch (err) {
+    res.status(503).json({ ok: false, ts: new Date().toISOString(), db: err.message });
+  }
+});
 
 app.use('/auth', authRouter);
 app.use('/products', productsRouter);

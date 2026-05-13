@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "migrate": "node api/migrate.js",
+    "migrate:seed": "node api/migrate.js --seed",
     "dev:api": "npm --prefix api run dev",
     "dev:kill": "powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Write-Host 'Puerto 3000 liberado'\"",
     "dev:all": "npm run dev:kill && concurrently -n API,WEB -c cyan,green \"npm run dev:api\" \"npm run dev\"",

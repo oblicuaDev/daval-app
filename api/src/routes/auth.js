@@ -39,6 +39,86 @@ router.post('/login', asyncHandler(async (req, res) => {
   const refreshToken = signRefreshToken({ sub: u.id });
   res.json({ token, refreshToken, user: userPublic(u) });
 }));
+// Rutas de debug — deshabilitadas en producción
+if (process.env.NODE_ENV !== 'production') {
+
+router.post('/debug/hash', asyncHandler(async (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    throw new ApiError(400, 'PASSWORD_REQUIRED', 'password required');
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  res.json({
+    password,
+    hash,
+  });
+}));
+
+router.post('/debug/check-password', asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError(400, 'INVALID_INPUT', 'email and password required');
+  }
+
+  const r = await query(
+    `SELECT id, email, password_hash
+       FROM users
+      WHERE email = $1`,
+    [email]
+  );
+
+  const u = r.rows[0];
+
+  if (!u) {
+    return res.json({
+      exists: false,
+      passwordMatch: false,
+    });
+  }
+
+  const passwordMatch = await bcrypt.compare(
+    password,
+    u.password_hash
+  );
+
+  res.json({
+    exists: true,
+    passwordMatch,
+    hash: u.password_hash,
+  });
+}));
+router.post('/debug/reset-password', asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError(400, 'INVALID_INPUT', 'email and password required');
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  const r = await query(
+    `UPDATE users
+        SET password_hash = $1
+      WHERE email = $2
+      RETURNING id, email`,
+    [hash, email]
+  );
+
+  if (!r.rows[0]) {
+    throw new ApiError(404, 'USER_NOT_FOUND', 'User not found');
+  }
+
+  res.json({
+    success: true,
+    user: r.rows[0],
+  });
+}));
+
+} // end if NODE_ENV !== 'production'
 
 router.post('/refresh', asyncHandler(async (req, res) => {
   const { refreshToken } = req.body ?? {};

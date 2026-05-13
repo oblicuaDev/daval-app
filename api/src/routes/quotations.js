@@ -116,7 +116,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
   if (req.user.role === 'client') {
     params.push(req.user.sub);
-    filters.push(`c.user_id = $${params.length}`);
+    filters.push(`cl.user_id = $${params.length}`);
   } else if (req.user.role === 'advisor') {
     params.push(req.user.sub);
     filters.push(`q.advisor_id = $${params.length}`);

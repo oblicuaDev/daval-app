@@ -2,18 +2,36 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const pool = new Pool({
-  host:     process.env.DB_HOST     || 'localhost',
-  port:     Number(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME     || 'daval_db_dev',
-  user:     process.env.DB_USER     || 'daval_dev',
-  password: process.env.DB_PASSWORD,
-  max:      Number(process.env.DB_MAX_CONNECTIONS) || 10,
-  idleTimeoutMillis:    30_000,
-  connectionTimeoutMillis: 5_000,
-});
+function buildConfig() {
+  const base = {
+    max:                     Number(process.env.DB_MAX_CONNECTIONS) || 10,
+    idleTimeoutMillis:       30_000,
+    connectionTimeoutMillis: 5_000,
+  };
 
-// Falla rápido si las credenciales o el host son incorrectos
+  // DATABASE_URL tiene precedencia — usado en Supabase, Railway, Render
+  if (process.env.DATABASE_URL) {
+    return {
+      ...base,
+      connectionString: process.env.DATABASE_URL,
+      // Supabase requiere SSL; rejectUnauthorized:false soporta certs self-signed en Render/Railway
+      ssl: { rejectUnauthorized: false },
+    };
+  }
+
+  // Fallback: vars individuales para dev local con PostgreSQL sin SSL
+  return {
+    ...base,
+    host:     process.env.DB_HOST     || 'localhost',
+    port:     Number(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME     || 'daval_db_dev',
+    user:     process.env.DB_USER     || 'daval_dev',
+    password: process.env.DB_PASSWORD,
+  };
+}
+
+const pool = new Pool(buildConfig());
+
 pool.on('error', (err) => {
   console.error('[DB] Error inesperado en cliente inactivo:', err.message);
   process.exit(1);

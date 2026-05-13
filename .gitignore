@@ -30,3 +30,7 @@ UPLOAD_FLOW.md
 daval_api.postman_collection.json
 
 infra
+
+# Backups de BD (pueden contener datos sensibles)
+backup*.sql
+*.sql.bak
