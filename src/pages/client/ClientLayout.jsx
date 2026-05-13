@@ -1,17 +1,19 @@
 import logo from '../../logo-daval.jpeg';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  CalendarClock, LogOut, MessageCircle, Minus, Plus, Search,
+  LogOut, MessageCircle, Minus, Plus, Search,
   ShoppingCart, Trash2, Users, X, AlertTriangle, Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { formatCOP } from '../../data/mockData';
+import { useCompanies } from '../../hooks/useCompanies.js';
+import { useRoutes } from '../../hooks/useRoutes.js';
+import { formatCOP } from '../../utils/format.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import {
   formatRouteDateTime, formatTimeRemaining,
-  getClientRoute, getRouteCutoffStatus,
+  getRouteCutoffStatus,
 } from '../../utils/routeCutoff';
 
 const DAVAL_WHATSAPP_NUMBER = '573112345678';
@@ -20,14 +22,24 @@ const DAVAL_WHATSAPP_URL = `https://wa.me/${DAVAL_WHATSAPP_NUMBER}?text=${encode
 
 export default function ClientLayout() {
   const { currentUser, logout } = useAuth();
-  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart, companies, routes } = useApp();
+  const { cart, cartTotal, cartCount, updateCartItem, removeFromCart } = useApp();
+  const { data: companies = [] } = useCompanies();
+  const { data: routes = [] } = useRoutes();
   const navigate = useNavigate();
   const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [cartItemToDelete, setCartItemToDelete] = useState(null);
   const [now, setNow] = useState(() => new Date());
 
-  const { sucursal, route } = getClientRoute(currentUser, companies, routes);
+  const { branch, route } = useMemo(() => {
+    if (!currentUser?.branchId) return { branch: null, route: null };
+    for (const company of companies) {
+      const b = (company.branches || []).find(br => br.id === currentUser.branchId);
+      if (b) return { branch: b, route: routes.find(r => r.id === b.routeId) || null };
+    }
+    return { branch: null, route: null };
+  }, [currentUser, companies, routes]);
+
   const cutoffStatus = getRouteCutoffStatus(route, now);
   const routeCountdown = formatTimeRemaining(cutoffStatus.routeDate, now);
 
@@ -144,8 +156,8 @@ export default function ClientLayout() {
                 ? `Queda ${routeCountdown} para tu siguiente ruta · ${route.name}`
                 : 'Ruta pendiente de asignación'}
             </p>
-            {sucursal && (
-              <span className="hidden sm:inline text-xs opacity-60">· {sucursal.name}</span>
+            {branch && (
+              <span className="hidden sm:inline text-xs opacity-60">· {branch.name}</span>
             )}
           </div>
           {!cutoffStatus.isOpen && cutoffStatus.nextOpenDate && (

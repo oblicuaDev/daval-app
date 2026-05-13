@@ -162,7 +162,7 @@ router.post('/:id/comments', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Status patch (admin/advisor)
-const StatusSchema = z.object({ status: z.enum(['draft','sent','approved','rejected','synced']) });
+const StatusSchema = z.object({ status: z.enum(['draft','sent','pending','approved','rejected','synced','sent_to_siigo']) });
 router.patch('/:id/status', requireAuth, requireRole('admin','advisor'), asyncHandler(async (req, res) => {
   const { status } = StatusSchema.parse(req.body);
   const r = await query(
@@ -185,6 +185,61 @@ router.post('/:id/send-to-siigo', requireAuth, requireRole('admin','advisor'), a
   );
   if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Quotation not found');
   res.json(r.rows[0]);
+}));
+
+// Clone quotation — reuse items with fresh prices
+router.post('/:id/clone', requireAuth, asyncHandler(async (req, res) => {
+  const source = await loadQuotation(req.params.id, req.user);
+  if (!source) throw new ApiError(404, 'NOT_FOUND', 'Quotation not found');
+  if (!source.branchId) throw new ApiError(422, 'NO_BRANCH', 'Source quotation has no branch');
+
+  const ctx = await query(
+    `SELECT c.id AS client_id, c.price_list_id, cb.advisor_id, cb.company_id,
+            r.id AS route_id, r.day, r.cutoff_time
+       FROM company_branches cb
+       JOIN clients c ON c.user_id = $1
+       LEFT JOIN routes r ON r.id = cb.route_id
+      WHERE cb.id = $2`,
+    [req.user.sub, source.branchId]
+  );
+  if (!ctx.rows[0]) throw new ApiError(404, 'BRANCH_NOT_FOUND', 'Branch not accessible');
+  const row = ctx.rows[0];
+
+  const cutoff = computeRouteCutoff({ day: row.day, cutoff_time: row.cutoff_time });
+  if (!cutoff.isOpen) throw new ApiError(422, 'ROUTE_CLOSED', cutoff.message, { nextOpenDate: cutoff.nextOpenDate });
+
+  const productIds = source.items.map(i => i.productId);
+  const priceMap = await resolvePrices({ productIds, priceListId: row.price_list_id, clientId: row.client_id });
+
+  const conn = await getClient();
+  try {
+    await conn.query('BEGIN');
+    const code = `COT-${String(await nextSeq(conn)).padStart(6, '0')}`;
+    const total = source.items.reduce((s, it) => s + (priceMap.get(it.productId)?.finalPrice ?? it.unitPrice) * it.quantity, 0);
+    const q = await conn.query(
+      `INSERT INTO quotations (code, client_id, advisor_id, status, company_id, branch_id, notes, total)
+       VALUES ($1,$2,$3,'sent',$4,$5,$6,$7) RETURNING id, code, status, total, created_at`,
+      [code, row.client_id, row.advisor_id, row.company_id, source.branchId, source.notes ?? null, total]
+    );
+    const quotation = q.rows[0];
+    const itemValues = [];
+    const itemParams = [];
+    let pi = 1;
+    for (const it of source.items) {
+      const p = priceMap.get(it.productId);
+      const priceType = p?.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
+      const unitPrice = p?.finalPrice ?? it.unitPrice;
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, unitPrice);
+      pi += 5;
+    }
+    await conn.query(
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price) VALUES ${itemValues.join(',')}`,
+      itemParams
+    );
+    await conn.query('COMMIT');
+    res.status(201).json(await loadQuotation(quotation.id));
+  } catch (e) { await conn.query('ROLLBACK'); throw e; } finally { conn.release(); }
 }));
 
 // ----- helpers -----

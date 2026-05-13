@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plus, X, Phone, MapPin, Calendar, Building, GitBranch } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
+import { useUsers, useCreateUser } from '../../hooks/useUsers.js';
+import { usePriceLists } from '../../hooks/usePriceLists.js';
+import { useCompanies } from '../../hooks/useCompanies.js';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -20,34 +21,21 @@ function Modal({ title, onClose, children }) {
 }
 
 const EMPTY_FORM = {
-  name: '', contactName: '', email: '', password: '', phone: '', address: '',
-  priceListId: 1, companyId: '', sucursalId: '',
+  name: '', email: '', password: '',
+  priceListId: '', branchId: '', companyId: '',
 };
 
 export default function AdminClients() {
-  const { users, setUsers } = useAuth();
-  const { priceLists, companies } = useApp();
+  const { data: clients = [], isLoading } = useUsers({ role: 'client' });
+  const { data: priceLists = [] } = usePriceLists();
+  const { data: companies = [] } = useCompanies();
+  const createUser = useCreateUser();
+
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [nextId, setNextId] = useState(10);
 
-  const clients = users.filter(u => u.role === 'client');
-
-  function getPriceListName(id) {
-    return priceLists.find(pl => pl.id === id)?.name || '—';
-  }
-
-  function getCompanyName(id) {
-    return companies.find(c => c.id === id)?.name || '—';
-  }
-
-  function getSucursalName(companyId, sucursalId) {
-    const company = companies.find(c => c.id === companyId);
-    return company?.sucursales.find(s => s.id === sucursalId)?.name || '—';
-  }
-
-  const availableSucursales = form.companyId
-    ? (companies.find(c => c.id === Number(form.companyId))?.sucursales || [])
+  const availableBranches = form.companyId
+    ? (companies.find(c => String(c.id) === String(form.companyId))?.branches || [])
     : [];
 
   function openCreate() {
@@ -56,28 +44,20 @@ export default function AdminClients() {
   }
 
   function handleCompanyChange(e) {
-    setForm(f => ({ ...f, companyId: e.target.value, sucursalId: '' }));
+    setForm(f => ({ ...f, companyId: e.target.value, branchId: '' }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name || !form.email || !form.password) return;
-    const newClient = {
-      id: nextId,
+    await createUser.mutateAsync({
       name: form.name,
-      contactName: form.contactName,
       email: form.email,
       password: form.password,
-      phone: form.phone,
-      address: form.address,
-      priceListId: Number(form.priceListId),
-      companyId: form.companyId ? Number(form.companyId) : null,
-      sucursalId: form.sucursalId ? Number(form.sucursalId) : null,
       role: 'client',
-      initials: form.name.substring(0, 2).toUpperCase(),
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setUsers(prev => [...prev, newClient]);
-    setNextId(n => n + 1);
+      priceListId: form.priceListId || undefined,
+      branchId: form.branchId || undefined,
+      companyId: form.companyId || undefined,
+    });
     setShowModal(false);
   }
 
@@ -107,77 +87,74 @@ export default function AdminClients() {
               <tr className="bg-gray-900 border-b border-gray-700">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Cliente</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Empresa / Sucursal</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Contacto</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Lista de Precios</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Dirección</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Estado</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Fecha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {clients.map(client => (
-                <tr key={client.id} className="hover:bg-gray-700/50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-emerald-900 text-emerald-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {client.initials}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-100">{client.name}</p>
-                        <p className="text-xs text-gray-500">{client.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    {client.companyId ? (
-                      <div>
-                        <div className="flex items-center gap-1 text-sm text-gray-300">
-                          <Building className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                          {getCompanyName(client.companyId)}
-                        </div>
-                        {client.sucursalId && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                            <GitBranch className="w-3 h-3 flex-shrink-0" />
-                            {getSucursalName(client.companyId, client.sucursalId)}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-600">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="text-sm text-gray-300">{client.contactName || '—'}</div>
-                    {client.phone && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
-                      {getPriceListName(client.priceListId)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {client.address ? (
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate max-w-32">{client.address}</span>
-                      </div>
-                    ) : '—'}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Calendar className="w-3 h-3" />
-                      {client.createdAt || '—'}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {clients.length === 0 && (
+              {isLoading && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-500">Cargando…</td>
+                </tr>
+              )}
+              {clients.map(client => {
+                const initials = (client.name || '').substring(0, 2).toUpperCase();
+                return (
+                  <tr key={client.id} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-emerald-900 text-emerald-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-100">{client.name}</p>
+                          <p className="text-xs text-gray-500">{client.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      {client.companyName ? (
+                        <div>
+                          <div className="flex items-center gap-1 text-sm text-gray-300">
+                            <Building className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                            {client.companyName}
+                          </div>
+                          {client.branchName && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                              <GitBranch className="w-3 h-3 flex-shrink-0" />
+                              {client.branchName}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      {client.priceListName ? (
+                        <span className="text-xs bg-blue-950 text-blue-300 px-2 py-1 rounded-full font-medium">
+                          {client.priceListName}
+                        </span>
+                      ) : <span className="text-xs text-gray-600">—</span>}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${client.active !== false ? 'bg-green-950 text-green-400' : 'bg-gray-700 text-gray-400'}`}>
+                        {client.active !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="w-3 h-3" />
+                        {client.createdAt ? new Date(client.createdAt).toLocaleDateString('es-CO') : '—'}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!isLoading && clients.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-500">
                     No hay clientes registrados
                   </td>
                 </tr>
@@ -193,7 +170,7 @@ export default function AdminClients() {
             <div className="p-3 bg-blue-950 rounded-xl border border-blue-800 space-y-3">
               <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Empresa y Sucursal</p>
               <div>
-                <label className={labelClass}>Empresa *</label>
+                <label className={labelClass}>Empresa</label>
                 <select className={inputClass} value={form.companyId} onChange={handleCompanyChange}>
                   <option value="">— Seleccionar empresa —</option>
                   {companies.map(c => (
@@ -205,13 +182,13 @@ export default function AdminClients() {
                 <label className={labelClass}>Sucursal</label>
                 <select
                   className={inputClass}
-                  value={form.sucursalId}
-                  onChange={e => setForm(f => ({ ...f, sucursalId: e.target.value }))}
-                  disabled={!form.companyId || availableSucursales.length === 0}
+                  value={form.branchId}
+                  onChange={e => setForm(f => ({ ...f, branchId: e.target.value }))}
+                  disabled={!form.companyId || availableBranches.length === 0}
                 >
                   <option value="">— Seleccionar sucursal —</option>
-                  {availableSucursales.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} {s.city ? `— ${s.city}` : ''}</option>
+                  {availableBranches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -220,10 +197,6 @@ export default function AdminClients() {
             <div>
               <label className={labelClass}>Nombre usuario / razón social *</label>
               <input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ferretería El Tornillo Dorado" />
-            </div>
-            <div>
-              <label className={labelClass}>Nombre contacto</label>
-              <input className={inputClass} value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Nombre del responsable" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -236,25 +209,22 @@ export default function AdminClients() {
               </div>
             </div>
             <div>
-              <label className={labelClass}>Teléfono</label>
-              <input className={inputClass} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="311-234-5678" />
-            </div>
-            <div>
-              <label className={labelClass}>Dirección</label>
-              <input className={inputClass} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Cra 10 # 5-23, Bogotá" />
-            </div>
-            <div>
               <label className={labelClass}>Lista de Precios</label>
               <select className={inputClass} value={form.priceListId} onChange={e => setForm(f => ({ ...f, priceListId: e.target.value }))}>
-                {priceLists.map(pl => <option key={pl.id} value={pl.id}>{pl.name} — {pl.description}</option>)}
+                <option value="">— Sin lista asignada —</option>
+                {priceLists.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
               </select>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
-              <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-                Crear Cliente
+              <button
+                onClick={handleSave}
+                disabled={createUser.isPending || !form.name || !form.email || !form.password}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {createUser.isPending ? 'Creando…' : 'Crear Cliente'}
               </button>
             </div>
           </div>

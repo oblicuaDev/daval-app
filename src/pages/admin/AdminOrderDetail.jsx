@@ -1,15 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { useQuotation } from '../../hooks/useQuotations.js';
 import OrderDetailCRM from '../../components/OrderDetailCRM';
 
 export default function AdminOrderDetail() {
   const { orderId } = useParams();
-  const navigate    = useNavigate();
-  const { orders, updateOrder } = useApp();
-  const { currentUser, users }  = useAuth();
+  const navigate = useNavigate();
+  const { data: order, isLoading } = useQuotation(orderId);
 
-  const order = orders.find(o => o.id === orderId);
+  if (isLoading) {
+    return <div className="py-20 text-center text-sm text-gray-500">Cargando cotización…</div>;
+  }
 
   if (!order) {
     return (
@@ -17,7 +17,7 @@ export default function AdminOrderDetail() {
         <p className="text-gray-500">Cotización no encontrada</p>
         <button
           onClick={() => navigate('/admin/cotizaciones')}
-          className="mt-4 text-blue-700 hover:text-blue-800 text-sm font-medium"
+          className="mt-4 text-blue-400 text-sm font-medium hover:text-blue-300"
         >
           Volver a la lista
         </button>
@@ -31,9 +31,6 @@ export default function AdminOrderDetail() {
       onBack={() => navigate('/admin/cotizaciones')}
       editable={true}
       canAssign={true}
-      currentUser={currentUser}
-      users={users}
-      updateOrder={updateOrder}
     />
   );
 }

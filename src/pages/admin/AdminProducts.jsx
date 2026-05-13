@@ -11,10 +11,12 @@ import {
   Camera,
   Link2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import productFallback from "../../product.webp";
-import { useApp } from "../../context/AppContext";
-import { formatCOP, PRODUCT_QUALITIES } from "../../data/mockData";
+import { formatCOP, PRODUCT_QUALITIES } from "../../utils/format.js";
 import { productsApi } from "../../api/modules/products";
+import { useProducts, useCreateProduct, useUpdateProduct, productKeys } from "../../hooks/useProducts.js";
+import { useCategories } from "../../hooks/useCategories.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -50,7 +52,12 @@ function Modal({ title, onClose, children }) {
 }
 
 export default function AdminProducts() {
-  const { products, setProducts, categories } = useApp();
+  const qc = useQueryClient();
+  const { data: products = [], isLoading } = useProducts({ active: false });
+  const { data: categories = [] } = useCategories();
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterQuality, setFilterQuality] = useState("");
@@ -58,10 +65,8 @@ export default function AdminProducts() {
   const [showImport, setShowImport] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [imageFile, setImageFile] = useState(null); // raw File pending upload
+  const [imageFile, setImageFile] = useState(null);
   const [uploadError, setUploadError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [nextId, setNextId] = useState(21);
   const [crossSearch, setCrossSearch] = useState("");
 
   const filtered = products.filter((p) => {
@@ -103,13 +108,13 @@ export default function AdminProducts() {
       name: product.name,
       sku: product.sku,
       categoryId: String(product.categoryId),
-      description: product.description,
+      description: product.description || "",
       basePrice: String(product.basePrice),
-      stock: String(product.stock),
+      stock: String(product.stock ?? 0),
       unit: product.unit,
       quality: product.quality || "standard",
-      active: product.active,
-      image: product.image || null,
+      active: product.active !== false,
+      image: product.imageUrl || product.image || null,
       complementaryIds: product.complementaryIds || [],
     });
     setImageFile(null);
@@ -132,15 +137,13 @@ export default function AdminProducts() {
   async function handleSave() {
     if (!form.name || !form.sku || !form.categoryId || !form.basePrice) return;
 
-    setSaving(true);
     setUploadError("");
 
     try {
-      let savedId = editProduct?.id;
-
       const payload = {
         name: form.name,
         sku: form.sku,
+        categoryId: Number(form.categoryId),
         description: form.description,
         basePrice: Number(form.basePrice),
         stock: Number(form.stock || 0),
@@ -148,70 +151,37 @@ export default function AdminProducts() {
         quality: form.quality,
         active: form.active,
         complementaryIds: form.complementaryIds || [],
-        image: form.image || null,
       };
 
-      // CREATE / UPDATE
+      let savedId = editProduct?.id;
       if (editProduct) {
-        await productsApi.update(editProduct.id, payload);
+        await updateProduct.mutateAsync({ id: editProduct.id, body: payload });
       } else {
-        const created = await productsApi.create(payload);
+        const created = await createProduct.mutateAsync(payload);
         savedId = created.id;
       }
 
-      // IMAGE UPLOAD
       if (imageFile && savedId) {
-        console.log("Uploading image...", imageFile);
-
-        const uploadResponse = await productsApi.uploadImage(
-          savedId,
-          imageFile,
-        );
-
-        console.log("uploadResponse", uploadResponse);
-
-        if (uploadResponse?.imageUrl) {
-          payload.image = uploadResponse.imageUrl;
-        }
-      }
-
-      // LOCAL STATE
-      if (editProduct) {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === editProduct.id ? { ...p, ...payload } : p)),
-        );
-      } else {
-        setProducts((prev) => [
-          ...prev,
-          {
-            id: savedId,
-            ...payload,
-          },
-        ]);
+        await productsApi.uploadImage(savedId, imageFile);
+        qc.invalidateQueries({ queryKey: productKeys.all });
       }
 
       setShowModal(false);
       setImageFile(null);
     } catch (err) {
-      console.error("SAVE ERROR", err);
-
       if (err?.response?.status === 401) {
         setUploadError("La API respondió 401. Se está perdiendo la sesión.");
         return;
       }
-
       setUploadError(err?.message || "Error guardando producto");
-    } finally {
-      setSaving(false);
     }
   }
 
-  function toggleActive(id) {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: !p.active } : p)),
-    );
+  async function toggleActive(product) {
+    await updateProduct.mutateAsync({ id: product.id, body: { active: !product.active } });
   }
 
+  const saving = createProduct.isPending || updateProduct.isPending;
   const inputClass =
     "w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500";
   const labelClass = "block text-sm font-medium text-gray-300 mb-1";
@@ -224,7 +194,7 @@ export default function AdminProducts() {
             Catálogo de Productos
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            {products.length} productos en total
+            {isLoading ? 'Cargando…' : `${products.length} productos en total`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -333,7 +303,7 @@ export default function AdminProducts() {
                 >
                   <td className="px-4 py-3">
                     <img
-                      src={product.image || productFallback}
+                      src={product.imageUrl || product.image || productFallback}
                       alt={product.name}
                       className="w-11 h-11 object-cover rounded-lg border border-gray-700"
                     />
@@ -383,7 +353,7 @@ export default function AdminProducts() {
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => toggleActive(product.id)}
+                        onClick={() => toggleActive(product)}
                         className="p-1.5 text-gray-500 hover:text-orange-400 hover:bg-orange-950 rounded-lg transition"
                         title={product.active ? "Desactivar" : "Activar"}
                       >

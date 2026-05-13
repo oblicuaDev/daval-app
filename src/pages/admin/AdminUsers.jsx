@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useUsers, useCreateUser } from '../../hooks/useUsers.js';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -21,30 +21,20 @@ function Modal({ title, onClose, children }) {
 const EMPTY_FORM = { name: '', email: '', password: '' };
 
 export default function AdminUsers() {
-  const { users, setUsers } = useAuth();
+  const { data: advisors = [], isLoading } = useUsers({ role: 'advisor' });
+  const createUser = useCreateUser();
+
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [nextId, setNextId] = useState(20);
-
-  const advisors = users.filter(u => u.role === 'advisor');
 
   function openCreate() {
     setForm(EMPTY_FORM);
     setShowModal(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name || !form.email || !form.password) return;
-    const newAdvisor = {
-      id: nextId,
-      name: form.name,
-      email: form.email,
-      password: form.password,
-      role: 'advisor',
-      initials: form.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-    };
-    setUsers(prev => [...prev, newAdvisor]);
-    setNextId(n => n + 1);
+    await createUser.mutateAsync({ name: form.name, email: form.email, password: form.password, role: 'advisor' });
     setShowModal(false);
   }
 
@@ -78,25 +68,33 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {advisors.map(advisor => (
-                <tr key={advisor.id} className="hover:bg-gray-700/50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-purple-900 text-purple-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {advisor.initials}
-                      </div>
-                      <span className="text-sm font-medium text-gray-100">{advisor.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-sm text-gray-400">{advisor.email}</td>
-                  <td className="px-5 py-4">
-                    <span className="text-xs bg-green-950 text-green-400 px-2 py-1 rounded-full font-medium">
-                      Activo
-                    </span>
-                  </td>
+              {isLoading && (
+                <tr>
+                  <td colSpan={3} className="px-5 py-10 text-center text-sm text-gray-500">Cargando…</td>
                 </tr>
-              ))}
-              {advisors.length === 0 && (
+              )}
+              {advisors.map(advisor => {
+                const initials = (advisor.name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                return (
+                  <tr key={advisor.id} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-purple-900 text-purple-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {initials}
+                        </div>
+                        <span className="text-sm font-medium text-gray-100">{advisor.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-sm text-gray-400">{advisor.email}</td>
+                    <td className="px-5 py-4">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${advisor.active !== false ? 'bg-green-950 text-green-400' : 'bg-gray-700 text-gray-400'}`}>
+                        {advisor.active !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!isLoading && advisors.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-5 py-10 text-center text-sm text-gray-500">
                     No hay asesores registrados
@@ -127,8 +125,12 @@ export default function AdminUsers() {
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
-              <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-                Crear Asesor
+              <button
+                onClick={handleSave}
+                disabled={createUser.isPending || !form.name || !form.email || !form.password}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {createUser.isPending ? 'Creando…' : 'Crear Asesor'}
               </button>
             </div>
           </div>

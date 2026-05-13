@@ -14,8 +14,9 @@ import {
   Search,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
-import { useAuth } from "../../context/AuthContext";
-import { getPrice, formatCOP, PRODUCT_QUALITIES } from "../../data/mockData";
+import { useProducts } from "../../hooks/useProducts.js";
+import { useCategories } from "../../hooks/useCategories.js";
+import { formatCOP, PRODUCT_QUALITIES } from "../../utils/format.js";
 import productFallback from "../../product.webp";
 
 const CATEGORY_COLORS = [
@@ -106,7 +107,7 @@ function ProductModal({
         {/* Image */}
         <div className="relative w-full h-56 bg-zinc-950 flex items-center justify-center">
           <ProductImage
-            image={product.image}
+            image={product.imageUrl}
             name={product.name}
             className="h-full w-full object-contain p-6"
           />
@@ -213,8 +214,10 @@ export default function ClientCatalog() {
   const context = useOutletContext() || {};
   const location = useLocation();
   const headerSearch = context.search || "";
-  const { products, categories, priceLists, promotions, addToCart } = useApp();
-  const { currentUser } = useAuth();
+  const { addToCart } = useApp();
+
+  const { data: products = [], isLoading: productsLoading } = useProducts({ active: true });
+  const { data: categories = [] } = useCategories();
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedQuality, setSelectedQuality] = useState("");
@@ -228,8 +231,6 @@ export default function ClientCatalog() {
     location.state?.loadedFromOrderId || "",
   );
 
-  const priceListId = currentUser?.priceListId || 1;
-
   function getCategoryName(id) {
     return categories.find((c) => c.id === id)?.name || "—";
   }
@@ -237,39 +238,15 @@ export default function ClientCatalog() {
     const idx = categories.findIndex((c) => c.id === id);
     return CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
   }
-  function isPromotionActive(promo) {
-    const now = Date.now();
-    if (promo.startsAt && now < new Date(promo.startsAt).getTime())
-      return false;
-    if (promo.endsAt && now > new Date(promo.endsAt).getTime()) return false;
-    if (
-      promo.scope === "selected" &&
-      !promo.clientIds?.includes(currentUser?.id)
-    )
-      return false;
-    return true;
-  }
+
+  // Backend resuelve precios — finalPrice = min(promo, lista)
   function getProductPricing(product) {
-    const originalPrice = getPrice(
-      product.basePrice,
-      priceListId,
-      priceLists,
-      product.sku,
-    );
-    const activePromos = promotions
-      .filter(isPromotionActive)
-      .map((p) => ({ promotion: p, price: p.pricesBySku?.[product.sku] }))
-      .filter(
-        ({ price }) =>
-          Number.isFinite(price) && price > 0 && price < originalPrice,
-      )
-      .sort((a, b) => a.price - b.price);
-    const best = activePromos[0];
+    const hasPromotion = product.promotionPrice != null && product.promotionPrice < product.priceListPrice;
     return {
-      originalPrice,
-      price: best?.price || originalPrice,
-      promotion: best?.promotion || null,
-      hasPromotion: Boolean(best),
+      price: product.finalPrice ?? product.basePrice,
+      originalPrice: product.priceListPrice ?? product.basePrice,
+      hasPromotion,
+      promotion: hasPromotion ? { name: 'Promoción vigente' } : null,
     };
   }
   function getProductQty(id) {
@@ -282,12 +259,15 @@ export default function ClientCatalog() {
     }));
   }
   function handleAdd(product, qty) {
-    addToCart(product, qty, getProductPricing(product).price);
+    addToCart(
+      { id: product.id, name: product.name, unit: product.unit },
+      qty,
+      getProductPricing(product).price
+    );
   }
 
   const hasActiveFilters = headerSearch || selectedCategory || selectedQuality;
   const filtered = products.filter((p) => {
-    if (!p.active) return false;
     const s = headerSearch.toLowerCase();
     const matchSearch =
       !s || p.name.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s);
@@ -427,7 +407,7 @@ export default function ClientCatalog() {
       {/* ── Grid View ────────────────────────────── */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {filtered.length === 0 && !products.length ? (
+          {productsLoading ? (
             Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)
           ) : filtered.length === 0 ? (
             <EmptyState hasFilters={Boolean(hasActiveFilters)} />
@@ -444,7 +424,7 @@ export default function ClientCatalog() {
                   {/* Image */}
                   <div className="relative w-full h-40 bg-zinc-950/50 overflow-hidden">
                     <ProductImage
-                      image={product.image}
+                      image={product.imageUrl}
                       name={product.name}
                       className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
                     />
@@ -568,7 +548,7 @@ export default function ClientCatalog() {
                       >
                         <td className="table-cell">
                           <ProductImage
-                            image={product.image}
+                            image={product.imageUrl}
                             name={product.name}
                             className="w-10 h-10 object-contain rounded-lg bg-zinc-950 p-0.5"
                           />

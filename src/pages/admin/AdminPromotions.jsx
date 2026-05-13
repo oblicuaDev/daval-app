@@ -12,8 +12,9 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { usePromotions, useCreatePromotion, useUpdatePromotion, useDeletePromotion } from '../../hooks/usePromotions.js';
+import { useProducts } from '../../hooks/useProducts.js';
+import { useUsers } from '../../hooks/useUsers.js';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -124,31 +125,29 @@ function getPromotionState(promotion) {
 }
 
 export default function AdminPromotions() {
-  const { promotions, setPromotions, products } = useApp();
-  const { users } = useAuth();
+  const { data: promotions = [], isLoading } = usePromotions();
+  const { data: products = [] } = useProducts({ active: true });
+  const { data: clients = [] } = useUsers({ role: 'client' });
+  const createPromotion = useCreatePromotion();
+  const updatePromotion = useUpdatePromotion();
+  const deletePromotion = useDeletePromotion();
+
   const [showModal, setShowModal] = useState(false);
   const [editPromotion, setEditPromotion] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const clients = users.filter(user => user.role === 'client');
   const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100 placeholder-gray-500';
   const labelClass = 'block text-sm font-medium text-gray-300 mb-1';
 
-  function getAssignedClientIds(promotion) {
-    if (promotion.scope === 'all') return clients.map(client => client.id);
-    return Array.isArray(promotion.clientIds) ? promotion.clientIds : [];
-  }
-
   function getScopeLabel(promotion) {
-    const assignedIds = getAssignedClientIds(promotion);
-    if (promotion.scope === 'all' || assignedIds.length === clients.length) return 'Todos los clientes';
-    if (assignedIds.length === 1) return '1 cliente seleccionado';
-    return `${assignedIds.length} clientes seleccionados`;
+    if (promotion.scope === 'all') return 'Todos los clientes';
+    const n = promotion.clientIds?.length ?? 0;
+    return n === 1 ? '1 cliente seleccionado' : `${n} clientes seleccionados`;
   }
 
   function openCreate() {
     setEditPromotion(null);
-    setForm({ ...EMPTY_FORM, clientIds: clients.map(client => client.id) });
+    setForm({ ...EMPTY_FORM });
     setShowModal(true);
   }
 
@@ -157,13 +156,13 @@ export default function AdminPromotions() {
     setForm({
       name: promotion.name || '',
       scope: promotion.scope || 'all',
-      clientIds: getAssignedClientIds(promotion),
-      startsAt: promotion.startsAt || '',
-      endsAt: promotion.endsAt || '',
-      fileName: promotion.fileName || '',
-      fileSize: promotion.fileSize || 0,
-      itemCount: promotion.itemCount || Object.keys(promotion.pricesBySku || {}).length,
-      pricesBySku: promotion.pricesBySku || {},
+      clientIds: promotion.clientIds || [],
+      startsAt: promotion.startsAt ? promotion.startsAt.slice(0, 16) : '',
+      endsAt: promotion.endsAt ? promotion.endsAt.slice(0, 16) : '',
+      fileName: '',
+      fileSize: 0,
+      itemCount: promotion.prices?.length || 0,
+      pricesBySku: Object.fromEntries((promotion.prices || []).map(p => [p.sku, p.price])),
       importStatus: '',
       importError: '',
     });
@@ -236,42 +235,32 @@ export default function AdminPromotions() {
     reader.readAsText(file);
   }
 
-  function handleSave() {
-    if (!form.name || !form.startsAt || !form.endsAt || !form.fileName) return;
-    if (form.scope === 'selected' && form.clientIds.length === 0) return;
-    if (new Date(form.startsAt).getTime() >= new Date(form.endsAt).getTime()) return;
+  async function handleSave() {
+    if (!form.name || !form.startsAt || !form.endsAt) return;
+    if (new Date(form.startsAt) >= new Date(form.endsAt)) return;
 
-    const promotionId = editPromotion?.id || promotions.reduce((max, promotion) => Math.max(max, promotion.id), 0) + 1;
-    const selectedClientIds = form.scope === 'all'
-      ? clients.map(client => client.id)
-      : form.clientIds.map(Number);
-
+    const prices = Object.entries(form.pricesBySku).map(([sku, price]) => ({ sku, price }));
     const payload = {
-      id: promotionId,
       name: form.name,
-      description: form.scope === 'all' ? 'Promocion para todos los clientes' : 'Promocion para clientes seleccionados',
       scope: form.scope,
-      clientIds: selectedClientIds,
       startsAt: form.startsAt,
       endsAt: form.endsAt,
-      fileName: form.fileName,
-      fileSize: form.fileSize,
-      itemCount: form.itemCount,
-      pricesBySku: form.pricesBySku,
-      updatedAt: new Date().toISOString(),
+      active: true,
+      prices,
+      clientIds: form.scope === 'specific' ? form.clientIds : [],
     };
 
     if (editPromotion) {
-      setPromotions(prev => prev.map(promotion => promotion.id === editPromotion.id ? { ...promotion, ...payload } : promotion));
+      await updatePromotion.mutateAsync({ id: editPromotion.id, body: payload });
     } else {
-      setPromotions(prev => [...prev, payload]);
+      await createPromotion.mutateAsync(payload);
     }
 
     setShowModal(false);
   }
 
   const hasInvalidDates = form.startsAt && form.endsAt && new Date(form.startsAt).getTime() >= new Date(form.endsAt).getTime();
-  const canSave = form.name && form.startsAt && form.endsAt && form.fileName && !hasInvalidDates && (form.scope === 'all' || form.clientIds.length > 0);
+  const canSave = form.name && form.startsAt && form.endsAt && !hasInvalidDates && (form.scope === 'all' || form.clientIds.length > 0);
 
   return (
     <div className="space-y-5">
@@ -399,7 +388,7 @@ export default function AdminPromotions() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setForm(current => ({ ...current, scope: 'all', clientIds: clients.map(client => client.id) }))}
+                  onClick={() => setForm(current => ({ ...current, scope: 'all', clientIds: [] }))}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
                     form.scope === 'all' ? 'border-blue-500 bg-blue-950 text-blue-200' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'
                   }`}
@@ -409,9 +398,9 @@ export default function AdminPromotions() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setForm(current => ({ ...current, scope: 'selected', clientIds: current.clientIds.length ? current.clientIds : [] }))}
+                  onClick={() => setForm(current => ({ ...current, scope: 'specific' }))}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                    form.scope === 'selected' ? 'border-blue-500 bg-blue-950 text-blue-200' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'
+                    form.scope === 'specific' ? 'border-blue-500 bg-blue-950 text-blue-200' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'
                   }`}
                 >
                   <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
@@ -420,7 +409,7 @@ export default function AdminPromotions() {
               </div>
             </div>
 
-            {form.scope === 'selected' && (
+            {form.scope === 'specific' && (
               <div className="rounded-xl border border-gray-700 bg-gray-900 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold text-gray-200">Selecciona uno o varios clientes</p>

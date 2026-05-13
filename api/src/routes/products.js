@@ -152,4 +152,57 @@ router.put('/:id', requireAuth, requireRole('admin'), asyncHandler(async (req, r
   res.json({ id: r.rows[0].id });
 }));
 
+// Public catalog — no auth required, paginated, with pricing from default list
+router.get('/catalog', asyncHandler(async (req, res) => {
+  const { search, categoryId, page = '1', limit = '40' } = req.query;
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 40));
+  const offset = (pageNum - 1) * limitNum;
+
+  const filters = [`p.active = TRUE`];
+  const params = [];
+  if (categoryId) { params.push(categoryId); filters.push(`p.category_id = $${params.length}`); }
+  if (search) {
+    params.push(`%${search}%`);
+    filters.push(`(p.name ILIKE $${params.length} OR p.sku ILIKE $${params.length})`);
+  }
+  const where = `WHERE ${filters.join(' AND ')}`;
+
+  const countR = await query(`SELECT COUNT(*)::int AS total FROM products p ${where}`, params);
+  const total = countR.rows[0].total;
+
+  params.push(limitNum, offset);
+  const r = await query(
+    `SELECT p.id, p.sku, p.name, p.unit, p.stock, p.quality, p.image_url,
+            p.base_price, p.category_id, c.name AS category_name
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       ${where}
+       ORDER BY p.name
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+
+  const { resolvePrices } = await import('../lib/pricing.js');
+  const productIds = r.rows.map(p => p.id);
+  const prices = productIds.length ? await resolvePrices({ productIds, priceListId: null, clientId: null }) : new Map();
+
+  res.json({
+    items: r.rows.map(p => {
+      const pr = prices.get(p.id) ?? {};
+      return {
+        id: p.id, sku: p.sku, name: p.name,
+        categoryId: p.category_id, categoryName: p.category_name,
+        unit: p.unit, stock: Number(p.stock), quality: p.quality,
+        imageUrl: p.image_url,
+        basePrice: Number(p.base_price),
+        finalPrice: pr.finalPrice ?? Number(p.base_price),
+      };
+    }),
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+  });
+}));
+
 export default router;

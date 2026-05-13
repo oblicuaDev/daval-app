@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { query } from '../config/db.js';
+import { query, getClient } from '../config/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { ApiError } from '../middleware/error.js';
 import { asyncHandler } from '../lib/validate.js';
@@ -85,6 +86,63 @@ priceLists.put('/:id', adminOnly, asyncHandler(async (req, res) => {
   );
   if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Price list not found');
   res.json({ id: r.rows[0].id });
+}));
+priceLists.delete('/:id', adminOnly, asyncHandler(async (req, res) => {
+  await query('DELETE FROM price_lists WHERE id=$1', [req.params.id]);
+  res.status(204).end();
+}));
+
+// GET /price-lists/:id/products — list products with custom price in this list
+priceLists.get('/:id/products', requireAuth, asyncHandler(async (req, res) => {
+  const r = await query(
+    `SELECT p.id AS product_id, p.sku, p.name, p.unit, p.active, p.base_price,
+            ppl.price AS custom_price
+       FROM products p
+       LEFT JOIN product_price_lists ppl
+         ON ppl.product_id = p.id AND ppl.price_list_id = $1
+      ORDER BY p.name`,
+    [req.params.id]
+  );
+  res.json({ items: r.rows.map(x => ({
+    productId: x.product_id,
+    sku: x.sku, name: x.name, unit: x.unit, active: x.active,
+    basePrice: Number(x.base_price),
+    customPrice: x.custom_price != null ? Number(x.custom_price) : null,
+  }))});
+}));
+
+// POST /price-lists/:id/products — bulk upsert (replaces all custom prices for this list)
+priceLists.post('/:id/products', adminOnly, asyncHandler(async (req, res) => {
+  const items = z.array(z.object({
+    productId: z.string().uuid(),
+    price: z.number().nonnegative(),
+  })).parse(req.body.items ?? []);
+
+  const plr = await query('SELECT name FROM price_lists WHERE id=$1', [req.params.id]);
+  if (!plr.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Price list not found');
+  const listName = plr.rows[0].name;
+
+  const conn = await getClient();
+  try {
+    await conn.query('BEGIN');
+    await conn.query('DELETE FROM product_price_lists WHERE price_list_id=$1', [req.params.id]);
+    if (items.length) {
+      const vals = items.map((_, i) => `($${i * 3 + 1},$${i * 3 + 2},$${i * 3 + 3},$${items.length * 3 + 1})`).join(',');
+      const params = items.flatMap(it => [it.productId, it.price, listName]);
+      params.push(req.params.id);
+      await conn.query(
+        `INSERT INTO product_price_lists (product_id, price, price_list_name, price_list_id) VALUES ${vals}`,
+        params
+      );
+    }
+    await conn.query('COMMIT');
+    res.json({ updated: items.length });
+  } catch (e) {
+    await conn.query('ROLLBACK');
+    throw e;
+  } finally {
+    conn.release();
+  }
 }));
 
 // ---------------- Companies + branches ----------------
@@ -173,37 +231,106 @@ companies.put('/:id/branches/:branchId', adminOnly, asyncHandler(async (req, res
   if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Branch not found');
   res.json({ id: r.rows[0].id });
 }));
+companies.delete('/:id/branches/:branchId', adminOnly, asyncHandler(async (req, res) => {
+  await query('DELETE FROM company_branches WHERE id=$1 AND company_id=$2', [req.params.branchId, req.params.id]);
+  res.status(204).end();
+}));
+companies.delete('/:id', adminOnly, asyncHandler(async (req, res) => {
+  await query('DELETE FROM companies WHERE id=$1', [req.params.id]);
+  res.status(204).end();
+}));
 
 // ---------------- Stats ----------------
 const stats = Router();
-stats.get('/admin', adminOnly, asyncHandler(async (_req, res) => {
+stats.get('/admin', adminOnly, asyncHandler(async (req, res) => {
+  const { dateFrom, dateTo } = req.query;
+  const dateParams = [];
+  const dateFilter = [];
+  if (dateFrom) { dateParams.push(dateFrom); dateFilter.push(`created_at >= $${dateParams.length}`); }
+  if (dateTo)   { dateParams.push(dateTo);   dateFilter.push(`created_at <= $${dateParams.length}`); }
+  const dateWhere = dateFilter.length ? `AND ${dateFilter.join(' AND ')}` : '';
+
+  const [totals, top, recent, monthly] = await Promise.all([
+    query(
+      `SELECT COUNT(*)::int AS orders_count, COALESCE(SUM(total),0) AS total_revenue
+         FROM quotations WHERE status <> 'rejected' ${dateWhere}`,
+      dateParams
+    ),
+    query(
+      `SELECT p.id, p.name, SUM(qi.quantity) AS qty, SUM(qi.subtotal) AS total
+         FROM quotation_items qi
+         JOIN products p ON p.id = qi.product_id
+         JOIN quotations q ON q.id = qi.quotation_id
+        WHERE q.status <> 'rejected' ${dateWhere.replace(/created_at/g, 'q.created_at')}
+        GROUP BY p.id, p.name
+        ORDER BY total DESC
+        LIMIT 10`,
+      dateParams
+    ),
+    query(
+      `SELECT q.id, q.code, q.total, q.status, q.created_at, q.siigo_url,
+              c.name AS client_name
+         FROM quotations q
+         JOIN clients c ON c.id = q.client_id
+        WHERE 1=1 ${dateWhere}
+        ORDER BY q.created_at DESC LIMIT 10`,
+      dateParams
+    ),
+    query(
+      `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+              SUM(total) AS total
+         FROM quotations
+        WHERE status <> 'rejected'
+          AND created_at >= NOW() - INTERVAL '12 months'
+          ${dateWhere}
+        GROUP BY 1 ORDER BY 1`,
+      dateParams
+    ),
+  ]);
+  res.json({
+    totalRevenue: Number(totals.rows[0].total_revenue),
+    ordersCount: totals.rows[0].orders_count,
+    topProducts: top.rows.map(r => ({ id: r.id, name: r.name, qty: Number(r.qty), total: Number(r.total) })),
+    recentOrders: recent.rows,
+    monthlyRevenue: monthly.rows.map(r => ({ month: r.month, total: Number(r.total) })),
+  });
+}));
+
+stats.get('/advisor', requireAuth, requireRole('admin', 'advisor'), asyncHandler(async (req, res) => {
+  const advisorId = req.user.role === 'advisor' ? req.user.sub : (req.query.advisorId ?? null);
+  const params = advisorId ? [advisorId] : [];
+  const advisorFilter = advisorId ? `AND q.advisor_id = $1` : '';
+
   const totals = await query(
     `SELECT COUNT(*)::int AS orders_count, COALESCE(SUM(total),0) AS total_revenue
-       FROM quotations WHERE status <> 'rejected'`
+       FROM quotations q WHERE status <> 'rejected' ${advisorFilter}`,
+    params
   );
   const top = await query(
     `SELECT p.id, p.name, SUM(qi.quantity) AS qty, SUM(qi.subtotal) AS total
        FROM quotation_items qi
        JOIN products p ON p.id = qi.product_id
        JOIN quotations q ON q.id = qi.quotation_id
-      WHERE q.status <> 'rejected'
-      GROUP BY p.id, p.name
-      ORDER BY total DESC
-      LIMIT 10`
+      WHERE q.status <> 'rejected' ${advisorFilter}
+      GROUP BY p.id, p.name ORDER BY total DESC LIMIT 10`,
+    params
   );
   const recent = await query(
-    `SELECT q.id, q.code, q.total, q.status, q.created_at, c.name AS client_name
+    `SELECT q.id, q.code, q.total, q.status, q.created_at, cl.name AS client_name
        FROM quotations q
-       JOIN clients c ON c.id = q.client_id
-      ORDER BY q.created_at DESC LIMIT 10`
+       JOIN clients cl ON cl.id = q.client_id
+      WHERE 1=1 ${advisorFilter}
+      ORDER BY q.created_at DESC LIMIT 10`,
+    params
   );
   const monthly = await query(
-    `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
-            SUM(total) AS total
-       FROM quotations
-      WHERE status <> 'rejected'
-        AND created_at >= NOW() - INTERVAL '12 months'
-      GROUP BY 1 ORDER BY 1`
+    `SELECT to_char(date_trunc('month', q.created_at), 'YYYY-MM') AS month, SUM(q.total) AS total
+       FROM quotations q
+      WHERE q.status <> 'rejected'
+        AND q.created_at >= NOW() - INTERVAL '12 months'
+        ${advisorFilter}
+      GROUP BY 1 ORDER BY 1`,
+    params
   );
   res.json({
     totalRevenue: Number(totals.rows[0].total_revenue),
@@ -214,4 +341,207 @@ stats.get('/admin', adminOnly, asyncHandler(async (_req, res) => {
   });
 }));
 
-export default { categories, priceLists, companies, stats };
+// ---------------- Promotions ----------------
+const promotions = Router();
+const PromotionSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  scope: z.enum(['all', 'specific']),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  active: z.boolean().default(true),
+});
+
+promotions.get('/', requireAuth, asyncHandler(async (_req, res) => {
+  const r = await query(
+    `SELECT p.id, p.name, p.description, p.scope, p.starts_at, p.ends_at, p.active,
+            COALESCE(json_agg(DISTINCT jsonb_build_object('sku',pp.sku,'price',pp.price))
+              FILTER (WHERE pp.sku IS NOT NULL), '[]') AS prices,
+            COALESCE(json_agg(DISTINCT pc.client_id) FILTER (WHERE pc.client_id IS NOT NULL), '[]') AS client_ids
+       FROM promotions p
+       LEFT JOIN promotion_prices pp ON pp.promotion_id = p.id
+       LEFT JOIN promotion_clients pc ON pc.promotion_id = p.id
+      GROUP BY p.id ORDER BY p.starts_at DESC`
+  );
+  res.json({ items: r.rows.map(x => ({
+    id: x.id, name: x.name, description: x.description, scope: x.scope,
+    startsAt: x.starts_at, endsAt: x.ends_at, active: x.active,
+    prices: x.prices, clientIds: x.client_ids,
+  }))});
+}));
+
+promotions.post('/', adminOnly, asyncHandler(async (req, res) => {
+  const b = PromotionSchema.parse(req.body);
+  const prices = req.body.prices ?? [];
+  const clientIds = req.body.clientIds ?? [];
+  const conn = await getClient();
+  try {
+    await conn.query('BEGIN');
+    const r = await conn.query(
+      `INSERT INTO promotions (name, description, scope, starts_at, ends_at, active)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [b.name, b.description ?? null, b.scope, b.startsAt, b.endsAt, b.active]
+    );
+    const id = r.rows[0].id;
+    if (prices.length) {
+      const vals = prices.map((_, i) => `($1,$${i * 2 + 2},$${i * 2 + 3})`).join(',');
+      const priceParams = [id, ...prices.flatMap(p => [p.sku, p.price])];
+      await conn.query(`INSERT INTO promotion_prices (promotion_id,sku,price) VALUES ${vals}`, priceParams);
+    }
+    if (b.scope === 'specific' && clientIds.length) {
+      const vals = clientIds.map((_, i) => `($1,$${i + 2})`).join(',');
+      await conn.query(`INSERT INTO promotion_clients (promotion_id,client_id) VALUES ${vals}`, [id, ...clientIds]);
+    }
+    await conn.query('COMMIT');
+    res.status(201).json({ id });
+  } catch (e) { await conn.query('ROLLBACK'); throw e; } finally { conn.release(); }
+}));
+
+promotions.put('/:id', adminOnly, asyncHandler(async (req, res) => {
+  const b = PromotionSchema.partial().parse(req.body);
+  const { prices, clientIds } = req.body;
+  const conn = await getClient();
+  try {
+    await conn.query('BEGIN');
+    await conn.query(
+      `UPDATE promotions SET
+          name = COALESCE($1, name), description = COALESCE($2, description),
+          scope = COALESCE($3, scope), starts_at = COALESCE($4, starts_at),
+          ends_at = COALESCE($5, ends_at), active = COALESCE($6, active), updated_at = NOW()
+        WHERE id = $7`,
+      [b.name ?? null, b.description ?? null, b.scope ?? null, b.startsAt ?? null, b.endsAt ?? null, b.active ?? null, req.params.id]
+    );
+    if (prices !== undefined) {
+      await conn.query('DELETE FROM promotion_prices WHERE promotion_id=$1', [req.params.id]);
+      if (prices.length) {
+        const vals = prices.map((_, i) => `($1,$${i * 2 + 2},$${i * 2 + 3})`).join(',');
+        await conn.query(
+          `INSERT INTO promotion_prices (promotion_id,sku,price) VALUES ${vals}`,
+          [req.params.id, ...prices.flatMap(p => [p.sku, p.price])]
+        );
+      }
+    }
+    if (clientIds !== undefined) {
+      await conn.query('DELETE FROM promotion_clients WHERE promotion_id=$1', [req.params.id]);
+      if (clientIds.length) {
+        const vals = clientIds.map((_, i) => `($1,$${i + 2})`).join(',');
+        await conn.query(`INSERT INTO promotion_clients (promotion_id,client_id) VALUES ${vals}`, [req.params.id, ...clientIds]);
+      }
+    }
+    await conn.query('COMMIT');
+    res.json({ id: req.params.id });
+  } catch (e) { await conn.query('ROLLBACK'); throw e; } finally { conn.release(); }
+}));
+
+promotions.delete('/:id', adminOnly, asyncHandler(async (req, res) => {
+  await query('DELETE FROM promotions WHERE id=$1', [req.params.id]);
+  res.status(204).end();
+}));
+
+// ---------------- Users (admin CRUD) ----------------
+const users = Router();
+const UserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(6).optional(),
+  role: z.enum(['admin', 'advisor', 'client']),
+  companyId: z.string().uuid().nullable().optional(),
+  branchId: z.string().uuid().nullable().optional(),
+  active: z.boolean().default(true),
+});
+
+users.get('/', adminOnly, asyncHandler(async (req, res) => {
+  const { role } = req.query;
+  const params = [];
+  const where = role ? (params.push(role), `WHERE u.role = $1`) : '';
+  const r = await query(
+    `SELECT u.id, u.name, u.email, u.role, u.active, u.company_id, u.branch_id, u.created_at,
+            c.id AS client_id, c.price_list_id, c.advisor_id AS client_advisor_id, c.route_id,
+            pl.name AS price_list_name,
+            co.name AS company_name,
+            cb.name AS branch_name
+       FROM users u
+       LEFT JOIN clients c ON c.user_id = u.id
+       LEFT JOIN price_lists pl ON pl.id = c.price_list_id
+       LEFT JOIN companies co ON co.id = u.company_id
+       LEFT JOIN company_branches cb ON cb.id = u.branch_id
+       ${where} ORDER BY u.name`,
+    params
+  );
+  res.json({ items: r.rows.map(x => ({
+    id: x.id, name: x.name, email: x.email, role: x.role, active: x.active,
+    companyId: x.company_id, branchId: x.branch_id, createdAt: x.created_at,
+    clientId: x.client_id, priceListId: x.price_list_id,
+    advisorId: x.client_advisor_id, routeId: x.route_id,
+    priceListName: x.price_list_name,
+    companyName: x.company_name,
+    branchName: x.branch_name,
+  }))});
+}));
+
+const UserCreateSchema = UserSchema.extend({
+  priceListId: z.string().uuid().nullable().optional(),
+});
+
+users.post('/', adminOnly, asyncHandler(async (req, res) => {
+  const b = UserCreateSchema.parse(req.body);
+  if (!b.password) throw new ApiError(400, 'MISSING_PASSWORD', 'password required for new users');
+  const hash = await bcrypt.hash(b.password, 10);
+
+  const conn = await getClient();
+  try {
+    await conn.query('BEGIN');
+    const r = await conn.query(
+      `INSERT INTO users (name, email, password_hash, role, active, company_id, branch_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [b.name, b.email, hash, b.role, b.active, b.companyId ?? null, b.branchId ?? null]
+    );
+    const userId = r.rows[0].id;
+
+    if (b.role === 'client') {
+      // resolve route from branch if provided
+      let routeId = null;
+      if (b.branchId) {
+        const br = await conn.query('SELECT route_id FROM company_branches WHERE id=$1', [b.branchId]);
+        routeId = br.rows[0]?.route_id ?? null;
+      }
+      await conn.query(
+        `INSERT INTO clients (name, nit, email, user_id, price_list_id, route_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [b.name, `NIT-${userId.slice(0, 8)}`, b.email, userId, b.priceListId ?? null, routeId]
+      );
+    }
+
+    await conn.query('COMMIT');
+    res.status(201).json({ id: userId });
+  } catch (e) {
+    await conn.query('ROLLBACK');
+    throw e;
+  } finally {
+    conn.release();
+  }
+}));
+
+users.put('/:id', adminOnly, asyncHandler(async (req, res) => {
+  const b = UserSchema.partial().parse(req.body);
+  const sets = [];
+  const params = [];
+  const map = { name: 'name', email: 'email', role: 'role', active: 'active', companyId: 'company_id', branchId: 'branch_id' };
+  for (const [k, col] of Object.entries(map)) {
+    if (b[k] !== undefined) { params.push(b[k]); sets.push(`${col}=$${params.length}`); }
+  }
+  if (b.password) { const h = await bcrypt.hash(b.password, 10); params.push(h); sets.push(`password_hash=$${params.length}`); }
+  if (!sets.length) throw new ApiError(400, 'EMPTY_PATCH', 'No fields to update');
+  sets.push('updated_at=NOW()');
+  params.push(req.params.id);
+  const r = await query(`UPDATE users SET ${sets.join(',')} WHERE id=$${params.length} RETURNING id`, params);
+  if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'User not found');
+  res.json({ id: r.rows[0].id });
+}));
+
+users.delete('/:id', adminOnly, asyncHandler(async (req, res) => {
+  await query(`UPDATE users SET active=FALSE, updated_at=NOW() WHERE id=$1`, [req.params.id]);
+  res.status(204).end();
+}));
+
+export default { categories, priceLists, companies, stats, promotions, users };

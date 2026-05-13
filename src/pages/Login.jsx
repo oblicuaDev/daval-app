@@ -7,7 +7,8 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useApp } from '../context/AppContext';
+import { companiesApi } from '../api/modules/companies.js';
+import { usersApi } from '../api/modules/users.js';
 
 const REGISTER_STEPS = [
   { id: 'empresa',  label: 'Empresa',  icon: Building2 },
@@ -32,19 +33,19 @@ function FieldInput({ label, ...props }) {
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, users, registerUser } = useAuth();
-  const { companies, setCompanies } = useApp();
-  const [email, setEmail]                     = useState('');
-  const [password, setPassword]               = useState('');
-  const [showPassword, setShowPassword]       = useState(false);
-  const [error, setError]                     = useState('');
-  const [loading, setLoading]                 = useState(false);
-  const [showRegister, setShowRegister]       = useState(false);
-  const [registerStep, setRegisterStep]       = useState(0);
-  const [registerForm, setRegisterForm]       = useState(INITIAL);
-  const [registerError, setRegisterError]     = useState('');
-  const [showRegPass, setShowRegPass]         = useState(false);
-  const [welcomeName, setWelcomeName]         = useState('');
+  const { login } = useAuth();
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerStep, setRegisterStep] = useState(0);
+  const [registerForm, setRegisterForm] = useState(INITIAL);
+  const [registerError, setRegisterError] = useState('');
+  const [registering, setRegistering]   = useState(false);
+  const [showRegPass, setShowRegPass]   = useState(false);
+  const [welcomeName, setWelcomeName]   = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -90,8 +91,6 @@ export default function Login() {
         return 'Completa los datos del usuario.';
       if (f.password.length < 6) return 'La contraseña debe tener mínimo 6 caracteres.';
       if (f.password !== f.confirmPassword) return 'Las contraseñas no coinciden.';
-      if (users.some(u => u.email.toLowerCase() === f.userEmail.toLowerCase()))
-        return 'Ya existe un usuario con ese correo.';
     }
     if (step === 2) {
       if (!f.sucursalName || !f.city || !f.address)
@@ -106,32 +105,43 @@ export default function Login() {
     setRegisterStep(s => Math.min(s + 1, REGISTER_STEPS.length - 1));
   }
 
-  function handleRegisterSubmit(e) {
+  async function handleRegisterSubmit(e) {
     e.preventDefault();
-    const msg = validateStep() || REGISTER_STEPS.map((_, i) => validateStep(i)).find(Boolean);
+    const msg = REGISTER_STEPS.map((_, i) => validateStep(i)).find(Boolean);
     if (msg) { setRegisterError(msg); return; }
 
-    const today       = new Date().toISOString().split('T')[0];
-    const newCompanyId = Math.max(0, ...companies.map(c => c.id)) + 1;
-    const newUserId    = Math.max(0, ...users.map(u => u.id)) + 1;
-    const addr         = `${registerForm.address}, ${registerForm.city}`;
+    setRegistering(true);
+    setRegisterError('');
+    try {
+      const company = await companiesApi.create({
+        name:  registerForm.companyName.trim(),
+        nit:   registerForm.nit.trim(),
+        email: registerForm.companyEmail.trim(),
+        phone: registerForm.companyPhone.trim(),
+      });
 
-    setCompanies(prev => [...prev, {
-      id: newCompanyId, name: registerForm.companyName.trim(), nit: registerForm.nit.trim(),
-      email: registerForm.companyEmail.trim(), phone: registerForm.companyPhone.trim(),
-      address: addr, active: true,
-      sucursales: [{ id: 1, name: registerForm.sucursalName.trim(), address: addr,
-        city: registerForm.city.trim(), routeId: null, advisorId: null, active: true }],
-    }]);
-    registerUser({
-      id: newUserId, name: registerForm.userName.trim(), email: registerForm.userEmail.trim(),
-      password: registerForm.password, role: 'client', priceListId: 1,
-      companyId: newCompanyId, sucursalId: 1, contactName: registerForm.userName.trim(),
-      phone: registerForm.companyPhone.trim(), address: addr,
-      initials: registerForm.userName.trim().substring(0, 2).toUpperCase(), createdAt: today,
-    });
-    setWelcomeName(registerForm.userName.trim());
-    closeRegister();
+      const branch = await companiesApi.createBranch(company.id, {
+        name:    registerForm.sucursalName.trim(),
+        city:    registerForm.city.trim(),
+        address: registerForm.address.trim(),
+      });
+
+      await usersApi.create({
+        name:     registerForm.userName.trim(),
+        email:    registerForm.userEmail.trim(),
+        password: registerForm.password,
+        role:     'client',
+        branchId: branch.id,
+      });
+
+      await login(registerForm.userEmail.trim(), registerForm.password);
+      setWelcomeName(registerForm.userName.trim());
+      closeRegister();
+    } catch (err) {
+      setRegisterError(err?.response?.data?.message || 'Error al crear la cuenta. Intenta nuevamente.');
+    } finally {
+      setRegistering(false);
+    }
   }
 
   const CurrentStepIcon = REGISTER_STEPS[registerStep].icon;
@@ -139,15 +149,12 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 relative overflow-hidden">
 
-      {/* Ambient gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-900/10 blur-[120px]" />
       </div>
 
-      {/* Login card */}
       <div className="relative w-full max-w-[380px] animate-scale-in">
 
-        {/* Brand mark */}
         <div className="text-center mb-7">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-card mb-4 overflow-hidden">
             <img src={logo} alt="DAVAL" className="w-full h-full object-contain p-1" />
@@ -231,12 +238,11 @@ export default function Login() {
         </p>
       </div>
 
-      {/* ── Register modal ─────────────────────────── */}
+      {/* Register modal */}
       {showRegister && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
           <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl shadow-modal overflow-hidden animate-scale-in">
 
-            {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-brand-900/60 border border-brand-800/50 flex items-center justify-center">
@@ -252,7 +258,6 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Step indicators */}
             <div className="px-6 pt-5">
               <div className="grid grid-cols-3 gap-2">
                 {REGISTER_STEPS.map((step, i) => {
@@ -351,6 +356,7 @@ export default function Login() {
                   type="button"
                   onClick={() => registerStep === 0 ? closeRegister() : setRegisterStep(s => s - 1)}
                   className="btn-secondary text-xs px-4"
+                  disabled={registering}
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   {registerStep === 0 ? 'Cancelar' : 'Atrás'}
@@ -362,9 +368,17 @@ export default function Login() {
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
-                  <button type="submit" className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-lg px-4 py-2.5 text-xs transition-all duration-150 active:scale-[0.98]">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Crear cuenta
+                  <button
+                    type="submit"
+                    disabled={registering}
+                    className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-lg px-4 py-2.5 text-xs transition-all duration-150 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {registering ? (
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    {registering ? 'Creando...' : 'Crear cuenta'}
                   </button>
                 )}
               </div>
@@ -373,7 +387,7 @@ export default function Login() {
         </div>
       )}
 
-      {/* ── Welcome modal ──────────────────────────── */}
+      {/* Welcome modal */}
       {welcomeName && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-modal p-7 text-center animate-scale-in">

@@ -3,25 +3,42 @@ import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, History, ArrowRight, Eye, X, Package, CheckCircle2,
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { formatCOP } from '../../data/mockData';
-import { getClientRoute, getRouteCutoffStatus } from '../../utils/routeCutoff';
+import { useApp } from '../../context/AppContext';
+import { useQuotations } from '../../hooks/useQuotations.js';
+import { useCompanies } from '../../hooks/useCompanies.js';
+import { useRoutes } from '../../hooks/useRoutes.js';
+import { formatCOP } from '../../utils/format.js';
+import { getRouteCutoffStatus } from '../../utils/routeCutoff';
 
 export default function ClientStart() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { orders, loadCartFromItems, companies, routes } = useApp();
+  const { loadCartFromItems } = useApp();
+  const { data: quotations = [] } = useQuotations();
+  const { data: companies = [] } = useCompanies();
+  const { data: routes = [] } = useRoutes();
+
   const [showPreviousModal, setShowPreviousModal] = useState(false);
   const [previewOrder, setPreviewOrder] = useState(null);
-  const { route } = getClientRoute(currentUser, companies, routes);
-  const cutoffStatus = getRouteCutoffStatus(route);
+
+  // Resolve client's route via their branchId
+  const clientRoute = useMemo(() => {
+    if (!currentUser?.branchId) return null;
+    for (const company of companies) {
+      const branch = (company.branches || []).find(b => b.id === currentUser.branchId);
+      if (branch?.routeId) {
+        return routes.find(r => r.id === branch.routeId) || null;
+      }
+    }
+    return null;
+  }, [currentUser, companies, routes]);
+
+  const cutoffStatus = getRouteCutoffStatus(clientRoute);
 
   const previousOrders = useMemo(() => (
-    [...orders]
-      .filter(order => order.clientId === currentUser?.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  ), [orders, currentUser?.id]);
+    [...quotations].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  ), [quotations]);
 
   function startFromScratch() {
     if (!cutoffStatus.isOpen) return;
@@ -84,6 +101,12 @@ export default function ClientStart() {
         </button>
       </div>
 
+      {!cutoffStatus.isOpen && (
+        <div className="bg-amber-950 border border-amber-800 rounded-xl px-5 py-4">
+          <p className="text-sm text-amber-300">{cutoffStatus.message}</p>
+        </div>
+      )}
+
       {showPreviousModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl">
@@ -94,10 +117,7 @@ export default function ClientStart() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setShowPreviousModal(false);
-                  setPreviewOrder(null);
-                }}
+                onClick={() => { setShowPreviousModal(false); setPreviewOrder(null); }}
                 className="p-1.5 text-gray-500 hover:text-gray-300 transition"
               >
                 <X className="w-5 h-5" />
@@ -125,8 +145,10 @@ export default function ClientStart() {
                       <div key={order.id} className="p-4 hover:bg-gray-700/40 transition">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-mono font-semibold text-blue-300">{order.id}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{order.createdAt} · {order.items.length} ítem(s)</p>
+                            <p className="text-sm font-mono font-semibold text-blue-300">{order.code || order.id}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-CO') : '—'} · {order.items?.length ?? 0} ítem(s)
+                            </p>
                             <p className="text-sm font-semibold text-gray-200 mt-2">{formatCOP(order.total)}</p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -159,15 +181,17 @@ export default function ClientStart() {
                 {!previewOrder ? (
                   <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center border border-dashed border-gray-700 rounded-xl">
                     <Eye className="w-10 h-10 text-gray-700 mb-3" />
-                    <p className="text-sm text-gray-500">Selecciona “Ver” para previsualizar una cotización.</p>
+                    <p className="text-sm text-gray-500">Selecciona "Ver" para previsualizar una cotización.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs text-gray-500">Previsualización</p>
-                        <h4 className="text-xl font-bold text-gray-100 font-mono">{previewOrder.id}</h4>
-                        <p className="text-xs text-gray-500 mt-1">{previewOrder.createdAt}</p>
+                        <h4 className="text-xl font-bold text-gray-100 font-mono">{previewOrder.code || previewOrder.id}</h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {previewOrder.createdAt ? new Date(previewOrder.createdAt).toLocaleDateString('es-CO') : '—'}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -190,7 +214,7 @@ export default function ClientStart() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
-                          {previewOrder.items.map((item, index) => (
+                          {(previewOrder.items || []).map((item, index) => (
                             <tr key={`${item.productId}-${index}`}>
                               <td className="px-4 py-3">
                                 <p className="text-sm font-medium text-gray-100">{item.productName}</p>

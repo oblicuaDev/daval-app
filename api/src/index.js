@@ -35,6 +35,8 @@ app.use('/stats', adminRouter.stats);
 app.use('/categories', adminRouter.categories);
 app.use('/price-lists', adminRouter.priceLists);
 app.use('/companies', adminRouter.companies);
+app.use('/promotions', adminRouter.promotions);
+app.use('/users', adminRouter.users);
 app.use('/integrations/siigo', siigoRouter);
 
 app.use(notFound);

@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_USERS } from '../data/mockData';
 import { tokenStore } from '../api/client.js';
 import { authApi } from '../api/modules/auth.js';
 
@@ -30,7 +29,6 @@ function broadcastAuthEvent(type, payload = {}) {
 export function AuthProvider({ children }) {
   // Lazy initializer: hydrate from localStorage on first render
   const [currentUser, setCurrentUser] = useState(readStoredUser);
-  const [users, setUsers] = useState(INITIAL_USERS);
 
   // Cross-tab sync: listen for login/logout events from other tabs
   useEffect(() => {
@@ -77,14 +75,6 @@ export function AuthProvider({ children }) {
       broadcastAuthEvent('LOGIN', { user });
       return { success: true, role: user.role };
     } catch {
-      // Fall back to mock when API is unavailable
-      const user = users.find(u => u.email === email && u.password === password);
-      if (user) {
-        setCurrentUser(user);
-        localStorage.setItem(USER_KEY, JSON.stringify(user));
-        broadcastAuthEvent('LOGIN', { user });
-        return { success: true, role: user.role };
-      }
       return { success: false };
     }
   }
@@ -96,16 +86,8 @@ export function AuthProvider({ children }) {
     broadcastAuthEvent('LOGOUT');
   }
 
-  function registerUser(user) {
-    setUsers(prev => [...prev, user]);
-    setCurrentUser(user);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    broadcastAuthEvent('LOGIN', { user });
-    return user;
-  }
-
   return (
-    <AuthContext.Provider value={{ currentUser, users, setUsers, login, logout, registerUser }}>
+    <AuthContext.Provider value={{ currentUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

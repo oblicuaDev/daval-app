@@ -59,3 +59,22 @@ export function useSendToSiigo() {
     },
   });
 }
+
+export function useUpdateQuotation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }) => quotationsApi.update(id, body),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: quotationKeys.detail(vars.id) });
+      qc.invalidateQueries({ queryKey: quotationKeys.all });
+    },
+  });
+}
+
+export function useCloneQuotation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: quotationsApi.clone,
+    onSuccess: () => qc.invalidateQueries({ queryKey: quotationKeys.all }),
+  });
+}

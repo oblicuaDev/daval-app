@@ -11,8 +11,9 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { usePriceLists, useCreatePriceList, useUpdatePriceList, useDeletePriceList, useSetPriceListProducts } from '../../hooks/usePriceLists.js';
+import { useProducts } from '../../hooks/useProducts.js';
+import { useUsers } from '../../hooks/useUsers.js';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -99,46 +100,48 @@ function parsePriceFile(text) {
   };
 }
 
+function getScopeLabel(list) {
+  if (list.scope === 'all') return 'Todos los clientes';
+  const n = list.clientIds?.length ?? 0;
+  return n === 1 ? '1 cliente seleccionado' : `${n} clientes seleccionados`;
+}
+
+function getAssignedClientIds(list) {
+  return list.clientIds ?? [];
+}
+
 export default function AdminPriceLists() {
-  const { priceLists, setPriceLists, products } = useApp();
-  const { users, setUsers } = useAuth();
+  const { data: priceLists = [], isLoading } = usePriceLists();
+  const { data: products = [] } = useProducts({ active: true });
+  const { data: clients = [] } = useUsers({ role: 'client' });
+  const createPriceList = useCreatePriceList();
+  const updatePriceList = useUpdatePriceList();
+  const deletePriceList = useDeletePriceList();
+  const setPriceListProducts = useSetPriceListProducts();
+
   const [showModal, setShowModal] = useState(false);
   const [editList, setEditList] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const clients = users.filter(u => u.role === 'client');
   const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-gray-100 placeholder-gray-500';
   const labelClass = 'block text-sm font-medium text-gray-300 mb-1';
 
-  function getAssignedClientIds(list) {
-    if (Array.isArray(list.clientIds)) return list.clientIds;
-    return clients.filter(c => c.priceListId === list.id).map(c => c.id);
-  }
-
-  function getScopeLabel(list) {
-    const assignedIds = getAssignedClientIds(list);
-    if (list.scope === 'all' || assignedIds.length === clients.length) return 'Todos los clientes';
-    if (assignedIds.length === 1) return '1 cliente seleccionado';
-    return `${assignedIds.length} clientes seleccionados`;
-  }
-
   function openCreate() {
     setEditList(null);
-    setForm({ ...EMPTY_FORM, clientIds: clients.map(client => client.id) });
+    setForm({ ...EMPTY_FORM });
     setShowModal(true);
   }
 
   function openEdit(list) {
-    const clientIds = getAssignedClientIds(list);
     setEditList(list);
     setForm({
       name: list.name || '',
-      scope: list.scope || (clientIds.length === clients.length ? 'all' : 'selected'),
-      clientIds,
-      fileName: list.fileName || '',
-      fileSize: list.fileSize || 0,
-      itemCount: list.itemCount || Object.keys(list.pricesBySku || {}).length,
-      pricesBySku: list.pricesBySku || {},
+      scope: 'all',
+      clientIds: [],
+      fileName: '',
+      fileSize: 0,
+      itemCount: 0,
+      pricesBySku: {},
       importStatus: '',
       importError: '',
     });
@@ -211,41 +214,29 @@ export default function AdminPriceLists() {
     reader.readAsText(file);
   }
 
-  function handleSave() {
-    if (!form.name || !form.fileName) return;
-    if (form.scope === 'selected' && form.clientIds.length === 0) return;
+  async function handleSave() {
+    if (!form.name) return;
 
-    const listId = editList?.id || priceLists.reduce((max, list) => Math.max(max, list.id), 0) + 1;
-    const selectedClientIds = form.scope === 'all'
-      ? clients.map(client => client.id)
-      : form.clientIds.map(Number);
-
-    const payload = {
-      id: listId,
-      name: form.name,
-      description: form.scope === 'all' ? 'Aplica para todos los clientes' : 'Aplica para clientes seleccionados',
-      multiplier: editList?.multiplier || 1,
-      scope: form.scope,
-      clientIds: selectedClientIds,
-      fileName: form.fileName,
-      fileSize: form.fileSize,
-      itemCount: form.itemCount,
-      pricesBySku: form.pricesBySku,
-      updatedAt: new Date().toISOString(),
-    };
-
+    let listId;
     if (editList) {
-      setPriceLists(prev => prev.map(list => list.id === editList.id ? { ...list, ...payload } : list));
+      await updatePriceList.mutateAsync({ id: editList.id, body: { name: form.name } });
+      listId = editList.id;
     } else {
-      setPriceLists(prev => [...prev, payload]);
+      const r = await createPriceList.mutateAsync({ name: form.name, active: true });
+      listId = r.id;
     }
 
-    setUsers(prev => prev.map(user => {
-      if (user.role !== 'client') return user;
-      if (selectedClientIds.includes(user.id)) return { ...user, priceListId: listId };
-      if (user.priceListId === listId) return { ...user, priceListId: 1 };
-      return user;
-    }));
+    // Si hay precios importados del CSV, guardarlos en el backend
+    const priceItems = Object.entries(form.pricesBySku)
+      .map(([sku, price]) => {
+        const product = products.find(p => p.sku === sku);
+        return product ? { productId: product.id, price } : null;
+      })
+      .filter(Boolean);
+
+    if (priceItems.length) {
+      await setPriceListProducts.mutateAsync({ id: listId, items: priceItems });
+    }
 
     setShowModal(false);
   }

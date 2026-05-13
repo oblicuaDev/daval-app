@@ -1,26 +1,48 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Trash2, Minus, Plus, CheckCircle, ArrowLeft, FileText } from 'lucide-react';
+import { ShoppingCart, Trash2, Minus, Plus, CheckCircle, ArrowLeft, FileText, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { formatCOP } from '../../data/mockData';
+import { useCreateQuotation } from '../../hooks/useQuotations.js';
+import { formatCOP } from '../../utils/format.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { getClientRoute, getRouteCutoffStatus } from '../../utils/routeCutoff';
 
 export default function ClientConfirmOrder() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { cart, cartTotal, updateCartItem, removeFromCart, submitOrder, companies, routes } = useApp();
+  const { cart, cartTotal, updateCartItem, removeFromCart, clearCart } = useApp();
+  const createQuotation = useCreateQuotation();
+
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(null);
   const [cartItemToDelete, setCartItemToDelete] = useState(null);
-  const { route } = getClientRoute(currentUser, companies, routes);
-  const cutoffStatus = getRouteCutoffStatus(route);
+  const [error, setError] = useState('');
 
-  function handleSubmit() {
-    if (!cutoffStatus.isOpen) return;
-    const orderId = submitOrder(currentUser, null, notes);
-    setSubmitted(orderId);
+  async function handleSubmit() {
+    if (!currentUser?.branchId) {
+      setError('Tu cuenta no tiene una sucursal asignada. Contacta a tu asesor.');
+      return;
+    }
+    if (cart.length === 0) return;
+
+    setError('');
+    try {
+      const result = await createQuotation.mutateAsync({
+        branchId: currentUser.branchId,
+        notes: notes || undefined,
+        items: cart.map(i => ({ productId: i.productId, quantity: i.quantity })),
+      });
+      clearCart();
+      setSubmitted(result.code ?? result.id);
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      const code = err?.response?.data?.error;
+      if (code === 'ROUTE_CLOSED') {
+        setError('La recepción de pedidos para esta ruta está cerrada. ' + (msg ?? ''));
+      } else {
+        setError(msg ?? 'Error al enviar la cotización. Intenta de nuevo.');
+      }
+    }
   }
 
   if (cart.length === 0 && !submitted) {
@@ -29,12 +51,9 @@ export default function ClientConfirmOrder() {
         <ShoppingCart className="w-14 h-14 text-gray-700 mb-4" />
         <h2 className="text-xl font-bold text-gray-200 mb-2">Tu cotización está vacía</h2>
         <p className="text-gray-400 text-sm mb-6">Agrega productos desde el catálogo antes de confirmar.</p>
-        <button
-          onClick={() => navigate('/cliente/catalogo', { state: { showCatalogIntro: true } })}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Ir al catálogo
+        <button onClick={() => navigate('/cliente/catalogo', { state: { showCatalogIntro: true } })}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+          <ArrowLeft className="w-4 h-4" /> Ir al catálogo
         </button>
       </div>
     );
@@ -51,19 +70,13 @@ export default function ClientConfirmOrder() {
         <p className="text-gray-500 text-sm mb-3">Un asesor atenderá tu cotización lo antes posible.</p>
         <p className="font-mono text-blue-400 font-bold text-xl mb-8">{submitted}</p>
         <div className="flex gap-3">
-          <button
-            onClick={() => navigate('/cliente/cotizaciones')}
-            className="flex items-center gap-2 px-5 py-2.5 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
-          >
-            <FileText className="w-4 h-4" />
-            Ver mis cotizaciones
+          <button onClick={() => navigate('/cliente/cotizaciones')}
+            className="flex items-center gap-2 px-5 py-2.5 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
+            <FileText className="w-4 h-4" /> Ver mis cotizaciones
           </button>
-          <button
-            onClick={() => navigate('/cliente/catalogo')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Seguir comprando
+          <button onClick={() => navigate('/cliente/catalogo')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+            <ShoppingCart className="w-4 h-4" /> Seguir comprando
           </button>
         </div>
       </div>
@@ -72,12 +85,9 @@ export default function ClientConfirmOrder() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/cliente/catalogo')}
-          className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition"
-        >
+        <button onClick={() => navigate('/cliente/catalogo')}
+          className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
@@ -86,7 +96,13 @@ export default function ClientConfirmOrder() {
         </div>
       </div>
 
-      {/* Items */}
+      {error && (
+        <div className="flex items-start gap-3 bg-red-950/50 border border-red-800/50 rounded-xl px-4 py-3 text-sm text-red-300">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-700 flex items-center gap-2">
           <ShoppingCart className="w-4 h-4 text-blue-400" />
@@ -99,66 +115,44 @@ export default function ClientConfirmOrder() {
                 <p className="text-sm font-medium text-gray-100 truncate">{item.productName}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{formatCOP(item.unitPrice)} por {item.unit}</p>
               </div>
-
-              {/* Quantity controls */}
               <div className="flex items-center border border-gray-600 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => updateCartItem(item.productId, item.quantity - 1)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:bg-gray-700 transition"
-                >
+                <button onClick={() => updateCartItem(item.productId, item.quantity - 1)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:bg-gray-700 transition">
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="w-10 text-center text-sm font-medium text-gray-100 border-x border-gray-600 py-1">{item.quantity}</span>
-                <button
-                  onClick={() => updateCartItem(item.productId, item.quantity + 1)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:bg-gray-700 transition"
-                >
+                <button onClick={() => updateCartItem(item.productId, item.quantity + 1)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:bg-gray-700 transition">
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
-
-              <p className="text-sm font-bold text-blue-400 w-24 text-right">
-                {formatCOP(item.unitPrice * item.quantity)}
-              </p>
-
-              <button
-                onClick={() => setCartItemToDelete(item)}
-                className="p-1.5 text-gray-600 hover:text-red-400 transition flex-shrink-0"
-              >
+              <p className="text-sm font-bold text-blue-400 w-24 text-right">{formatCOP(item.unitPrice * item.quantity)}</p>
+              <button onClick={() => setCartItemToDelete(item)}
+                className="p-1.5 text-gray-600 hover:text-red-400 transition flex-shrink-0">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
         </div>
-
-        {/* Total */}
         <div className="px-5 py-4 bg-gray-900 border-t border-gray-700 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-400">Total de la cotización</span>
+          <span className="text-sm font-medium text-gray-400">Total estimado</span>
           <span className="text-2xl font-bold text-gray-100">{formatCOP(cartTotal)}</span>
         </div>
       </div>
 
-      {/* Notes */}
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-5">
         <label className="block text-sm font-semibold text-gray-300 mb-2">
           Notas o instrucciones especiales
         </label>
-        <textarea
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          rows={3}
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
           placeholder="Ej: entregar en horario de mañana, facturar a nombre de..."
-          className="w-full border border-gray-600 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-gray-700 text-gray-100 placeholder-gray-500"
-        />
+          className="w-full border border-gray-600 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-gray-700 text-gray-100 placeholder-gray-500" />
       </div>
 
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={!cutoffStatus.isOpen}
-        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-bold transition shadow-sm disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-      >
-        {cutoffStatus.isOpen ? 'Enviar mi cotización' : 'Recepción cerrada para esta ruta'}
+      <button onClick={handleSubmit}
+        disabled={createQuotation.isPending || cart.length === 0}
+        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-bold transition shadow-sm disabled:opacity-45 disabled:cursor-not-allowed">
+        {createQuotation.isPending ? 'Enviando…' : 'Enviar mi cotización'}
       </button>
 
       {cartItemToDelete && (
@@ -166,10 +160,7 @@ export default function ClientConfirmOrder() {
           title="Eliminar producto"
           message={`Confirma que deseas quitar "${cartItemToDelete.productName}" de la cotización.`}
           onCancel={() => setCartItemToDelete(null)}
-          onConfirm={() => {
-            removeFromCart(cartItemToDelete.productId);
-            setCartItemToDelete(null);
-          }}
+          onConfirm={() => { removeFromCart(cartItemToDelete.productId); setCartItemToDelete(null); }}
         />
       )}
     </div>

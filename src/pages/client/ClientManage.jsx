@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Plus, X, Users, GitBranch, Edit2, Trash2, MapPin, Eye, EyeOff, Route, UserCog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
+import { useUsers, useCreateUser, useUpdateUser, useDeactivateUser } from '../../hooks/useUsers.js';
+import { useCompanies, useCreateBranch, useUpdateBranch, useDeleteBranch } from '../../hooks/useCompanies.js';
+import { useRoutes } from '../../hooks/useRoutes.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 function Modal({ title, onClose, children }) {
@@ -20,16 +22,33 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-const EMPTY_USER_FORM  = { name: '', email: '', password: '', sucursalId: '' };
-const EMPTY_SUC_FORM   = { name: '', city: '', address: '', advisorId: '' };
+const EMPTY_USER_FORM = { name: '', email: '', password: '', branchId: '' };
+const EMPTY_SUC_FORM  = { name: '', city: '', address: '' };
 
 export default function ClientManage() {
-  const { currentUser, users, setUsers } = useAuth();
-  const { companies, setCompanies, routes } = useApp();
+  const { currentUser } = useAuth();
 
-  const company = companies.find(c => c.id === currentUser?.companyId);
+  const { data: companies = [] } = useCompanies();
+  const { data: routes = [] } = useRoutes();
+  const { data: allUsers = [] } = useUsers({ role: 'client' });
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deactivateUser = useDeactivateUser();
+  const createBranch = useCreateBranch();
+  const updateBranch = useUpdateBranch();
+  const deleteBranch = useDeleteBranch();
 
-  const [tab, setTab]                   = useState('users');
+  const company = companies.find(c =>
+    (c.branches || []).some(b => b.id === currentUser?.branchId)
+  ) || null;
+
+  const companyUsers = allUsers.filter(
+    u => u.companyId === company?.id && u.id !== currentUser?.id && u.active !== false
+  );
+  const allCompanyUsers = allUsers.filter(u => u.companyId === company?.id && u.active !== false);
+  const branches = company?.branches || [];
+
+  const [tab, setTab]                    = useState('users');
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser]    = useState(null);
   const [userForm, setUserForm]          = useState(EMPTY_USER_FORM);
@@ -37,33 +56,13 @@ export default function ClientManage() {
   const [showSucModal, setShowSucModal]  = useState(false);
   const [editingSuc, setEditingSuc]      = useState(null);
   const [sucForm, setSucForm]            = useState(EMPTY_SUC_FORM);
-  const [nextUserId, setNextUserId]      = useState(200);
-  const [nextSucId, setNextSucId]        = useState(200);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const inputCls = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500';
   const lblCls   = 'block text-sm font-medium text-gray-300 mb-1';
 
-  const companyUsers = users.filter(
-    u => u.role === 'client' && u.companyId === currentUser?.companyId && u.id !== currentUser?.id
-  );
-  const allCompanyUsers = users.filter(
-    u => u.role === 'client' && u.companyId === currentUser?.companyId
-  );
-
-  const sucursales = company?.sucursales || [];
-  const advisors = users.filter(user => user.role === 'advisor');
-
-  function getSucursalName(id) {
-    return sucursales.find(s => s.id === id)?.name || '—';
-  }
-
   function getRouteName(routeId) {
-    return routes.find(route => route.id === routeId)?.name || 'Sin ruta asignada';
-  }
-
-  function getAdvisorName(advisorId) {
-    return advisors.find(advisor => advisor.id === advisorId)?.name || 'Sin asesor asignado';
+    return routes.find(r => r.id === routeId)?.name || 'Sin ruta asignada';
   }
 
   function openCreateUser() {
@@ -75,48 +74,29 @@ export default function ClientManage() {
 
   function openEditUser(user) {
     setEditingUser(user);
-    setUserForm({
-      name:       user.name,
-      email:      user.email,
-      password:   user.password,
-      sucursalId: user.sucursalId ? String(user.sucursalId) : '',
-    });
+    setUserForm({ name: user.name, email: user.email, password: '', branchId: user.branchId ? String(user.branchId) : '' });
     setShowPwd(false);
     setShowUserModal(true);
   }
 
-  function handleSaveUser() {
-    if (!userForm.name || !userForm.email || !userForm.password) return;
+  async function handleSaveUser() {
+    if (!userForm.name || !userForm.email) return;
+    if (!editingUser && !userForm.password) return;
     if (editingUser) {
-      setUsers(prev => prev.map(u =>
-        u.id === editingUser.id
-          ? { ...u, name: userForm.name, email: userForm.email, password: userForm.password,
-              sucursalId: userForm.sucursalId ? Number(userForm.sucursalId) : null }
-          : u
-      ));
+      const body = { name: userForm.name, email: userForm.email };
+      if (userForm.password) body.password = userForm.password;
+      if (userForm.branchId) body.branchId = Number(userForm.branchId);
+      await updateUser.mutateAsync({ id: editingUser.id, body });
     } else {
-      const newUser = {
-        id:          nextUserId,
-        name:        userForm.name,
-        email:       userForm.email,
-        password:    userForm.password,
-        role:        'client',
-        companyId:   currentUser.companyId,
-        sucursalId:  userForm.sucursalId ? Number(userForm.sucursalId) : null,
-        priceListId: currentUser.priceListId,
-        initials:    userForm.name.substring(0, 2).toUpperCase(),
-        createdAt:   new Date().toISOString().split('T')[0],
-      };
-      setUsers(prev => [...prev, newUser]);
-      setNextUserId(n => n + 1);
+      await createUser.mutateAsync({
+        name: userForm.name,
+        email: userForm.email,
+        password: userForm.password,
+        role: 'client',
+        branchId: userForm.branchId ? Number(userForm.branchId) : undefined,
+      });
     }
     setShowUserModal(false);
-  }
-
-  function handleDeleteUser(id) {
-    if (id === currentUser?.id) return;
-    if (allCompanyUsers.length <= 1) return;
-    setUsers(prev => prev.filter(u => u.id !== id));
   }
 
   function openCreateSuc() {
@@ -127,49 +107,28 @@ export default function ClientManage() {
 
   function openEditSuc(suc) {
     setEditingSuc(suc);
-    setSucForm({
-      name: suc.name,
-      city: suc.city || '',
-      address: suc.address || '',
-      advisorId: suc.advisorId ? String(suc.advisorId) : '',
-    });
+    setSucForm({ name: suc.name, city: suc.city || '', address: suc.address || '' });
     setShowSucModal(true);
   }
 
-  function handleSaveSuc() {
-    if (!sucForm.name) return;
-    const payload = {
-      ...sucForm,
-      advisorId: sucForm.advisorId ? Number(sucForm.advisorId) : null,
-    };
-    setCompanies(prev => prev.map(c => {
-      if (c.id !== currentUser.companyId) return c;
-      if (editingSuc) {
-        return { ...c, sucursales: c.sucursales.map(s => s.id === editingSuc.id ? { ...s, ...payload } : s) };
-      }
-      const newSuc = { id: nextSucId, ...payload, active: true };
-      setNextSucId(n => n + 1);
-      return { ...c, sucursales: [...c.sucursales, newSuc] };
-    }));
+  async function handleSaveSuc() {
+    if (!sucForm.name || !company) return;
+    const body = { name: sucForm.name, city: sucForm.city, address: sucForm.address };
+    if (editingSuc) {
+      await updateBranch.mutateAsync({ companyId: company.id, branchId: editingSuc.id, body });
+    } else {
+      await createBranch.mutateAsync({ companyId: company.id, body });
+    }
     setShowSucModal(false);
   }
 
-  function handleDeleteSuc(id) {
-    if (sucursales.length <= 1) return;
-    setCompanies(prev => prev.map(c =>
-      c.id === currentUser.companyId
-        ? { ...c, sucursales: c.sucursales.filter(s => s.id !== id) }
-        : c
-    ));
-  }
-
-  function confirmDeleteAction() {
+  async function confirmDeleteAction() {
     if (!confirmDelete) return;
     if (confirmDelete.type === 'user') {
-      handleDeleteUser(confirmDelete.id);
+      await deactivateUser.mutateAsync(confirmDelete.id);
     }
-    if (confirmDelete.type === 'sucursal') {
-      handleDeleteSuc(confirmDelete.id);
+    if (confirmDelete.type === 'sucursal' && company) {
+      await deleteBranch.mutateAsync({ companyId: company.id, branchId: confirmDelete.id });
     }
     setConfirmDelete(null);
   }
@@ -188,11 +147,11 @@ export default function ClientManage() {
   }
 
   function requestDeleteSucursal(suc) {
-    if (sucursales.length <= 1) {
+    if (branches.length <= 1) {
       setConfirmDelete({
         type: 'blocked',
         title: 'No se puede eliminar la sucursal',
-        message: 'La empresa debe conservar al menos una sucursal para solicitar cotizaciones y mantener su relación de ruta.',
+        message: 'La empresa debe conservar al menos una sucursal para solicitar cotizaciones.',
       });
       return;
     }
@@ -215,7 +174,6 @@ export default function ClientManage() {
         <p className="text-sm text-gray-400 mt-1">{company.name}</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-gray-900 p-1 rounded-xl w-fit">
         <button
           onClick={() => setTab('users')}
@@ -233,17 +191,14 @@ export default function ClientManage() {
           }`}
         >
           <GitBranch className="w-4 h-4" />
-          Sucursales ({sucursales.length})
+          Sucursales ({branches.length})
         </button>
       </div>
 
-      {/* USERS TAB */}
       {tab === 'users' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              Usuarios con acceso al portal de tu empresa
-            </p>
+            <p className="text-sm text-gray-400">Usuarios con acceso al portal de tu empresa</p>
             <button
               onClick={openCreateUser}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
@@ -260,50 +215,44 @@ export default function ClientManage() {
             </div>
           ) : (
             <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 divide-y divide-gray-700 overflow-hidden">
-              {companyUsers.map(user => (
-                <div key={user.id} className="flex items-center gap-4 px-5 py-4">
-                  <div className="w-9 h-9 bg-blue-950 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {user.initials}
+              {companyUsers.map(user => {
+                const initials = (user.name || '').substring(0, 2).toUpperCase();
+                return (
+                  <div key={user.id} className="flex items-center gap-4 px-5 py-4">
+                    <div className="w-9 h-9 bg-blue-950 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-100">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => openEditUser(user)}
+                        className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-950 rounded-lg transition"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => requestDeleteUser(user)}
+                        disabled={allCompanyUsers.length <= 1}
+                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-100">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {user.sucursalId && (
-                      <span className="text-xs text-gray-400 bg-gray-700 border border-gray-600 px-2 py-0.5 rounded-full">
-                        {getSucursalName(user.sucursalId)}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => openEditUser(user)}
-                      className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-950 rounded-lg transition"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => requestDeleteUser(user)}
-                      disabled={allCompanyUsers.length <= 1}
-                      title={allCompanyUsers.length <= 1 ? 'La empresa debe conservar al menos un usuario' : 'Eliminar usuario'}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* SUCURSALES TAB */}
       {tab === 'sucursales' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              Sucursales registradas en tu empresa
-            </p>
+            <p className="text-sm text-gray-400">Sucursales registradas en tu empresa</p>
             <button
               onClick={openCreateSuc}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
@@ -313,14 +262,14 @@ export default function ClientManage() {
             </button>
           </div>
 
-          {sucursales.length === 0 ? (
+          {branches.length === 0 ? (
             <div className="bg-gray-800 rounded-xl border border-gray-700 flex flex-col items-center justify-center py-16 text-center">
               <GitBranch className="w-10 h-10 text-gray-700 mb-3" />
               <p className="text-sm text-gray-500">Sin sucursales registradas</p>
             </div>
           ) : (
             <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 divide-y divide-gray-700 overflow-hidden">
-              {sucursales.map(suc => (
+              {branches.map(suc => (
                 <div key={suc.id} className="flex items-center gap-4 px-5 py-4">
                   <div className="w-9 h-9 bg-emerald-950 text-emerald-400 rounded-xl flex items-center justify-center flex-shrink-0">
                     <GitBranch className="w-4 h-4" />
@@ -337,9 +286,6 @@ export default function ClientManage() {
                       <span className={`flex items-center gap-1 text-xs ${suc.routeId ? 'text-blue-300' : 'text-gray-600'}`}>
                         <Route className="w-3 h-3" />{getRouteName(suc.routeId)}
                       </span>
-                      <span className={`flex items-center gap-1 text-xs ${suc.advisorId ? 'text-emerald-300' : 'text-gray-600'}`}>
-                        <UserCog className="w-3 h-3" />{getAdvisorName(suc.advisorId)}
-                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -351,9 +297,8 @@ export default function ClientManage() {
                     </button>
                     <button
                       onClick={() => requestDeleteSucursal(suc)}
-                      disabled={sucursales.length <= 1}
-                      title={sucursales.length <= 1 ? 'La empresa debe conservar al menos una sucursal' : 'Eliminar sucursal'}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent"
+                      disabled={branches.length <= 1}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -365,34 +310,19 @@ export default function ClientManage() {
         </div>
       )}
 
-      {/* User Modal */}
       {showUserModal && (
-        <Modal
-          title={editingUser ? 'Editar usuario' : 'Nuevo usuario'}
-          onClose={() => setShowUserModal(false)}
-        >
+        <Modal title={editingUser ? 'Editar usuario' : 'Nuevo usuario'} onClose={() => setShowUserModal(false)}>
           <div className="space-y-4">
             <div>
               <label className={lblCls}>Nombre completo *</label>
-              <input
-                className={inputCls}
-                value={userForm.name}
-                onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Nombre del usuario"
-              />
+              <input className={inputCls} value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre del usuario" />
             </div>
             <div>
               <label className={lblCls}>Email *</label>
-              <input
-                className={inputCls}
-                type="email"
-                value={userForm.email}
-                onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="usuario@empresa.com"
-              />
+              <input className={inputCls} type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} placeholder="usuario@empresa.com" />
             </div>
             <div>
-              <label className={lblCls}>Contraseña *</label>
+              <label className={lblCls}>{editingUser ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}</label>
               <div className="relative">
                 <input
                   className={inputCls + ' pr-10'}
@@ -412,27 +342,21 @@ export default function ClientManage() {
             </div>
             <div>
               <label className={lblCls}>Sucursal</label>
-              <select
-                className={inputCls}
-                value={userForm.sucursalId}
-                onChange={e => setUserForm(f => ({ ...f, sucursalId: e.target.value }))}
-              >
+              <select className={inputCls} value={userForm.branchId} onChange={e => setUserForm(f => ({ ...f, branchId: e.target.value }))}>
                 <option value="">— Sin sucursal —</option>
-                {sucursales.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ''}</option>
                 ))}
               </select>
             </div>
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setShowUserModal(false)}
-                className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
-              >
+              <button onClick={() => setShowUserModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
               <button
                 onClick={handleSaveUser}
-                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                disabled={createUser.isPending || updateUser.isPending}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-40"
               >
                 {editingUser ? 'Guardar cambios' : 'Crear usuario'}
               </button>
@@ -441,72 +365,38 @@ export default function ClientManage() {
         </Modal>
       )}
 
-      {/* Sucursal Modal */}
       {showSucModal && (
-        <Modal
-          title={editingSuc ? 'Editar sucursal' : 'Nueva sucursal'}
-          onClose={() => setShowSucModal(false)}
-        >
+        <Modal title={editingSuc ? 'Editar sucursal' : 'Nueva sucursal'} onClose={() => setShowSucModal(false)}>
           <div className="space-y-4">
             <div>
               <label className={lblCls}>Nombre de la sucursal *</label>
-              <input
-                className={inputCls}
-                value={sucForm.name}
-                onChange={e => setSucForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Ej. Sede Norte"
-              />
+              <input className={inputCls} value={sucForm.name} onChange={e => setSucForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej. Sede Norte" />
             </div>
             <div>
               <label className={lblCls}>Ciudad</label>
-              <input
-                className={inputCls}
-                value={sucForm.city}
-                onChange={e => setSucForm(f => ({ ...f, city: e.target.value }))}
-                placeholder="Bogotá"
-              />
+              <input className={inputCls} value={sucForm.city} onChange={e => setSucForm(f => ({ ...f, city: e.target.value }))} placeholder="Bogotá" />
             </div>
             <div>
               <label className={lblCls}>Dirección</label>
-              <input
-                className={inputCls}
-                value={sucForm.address}
-                onChange={e => setSucForm(f => ({ ...f, address: e.target.value }))}
-                placeholder="Cra 15 # 85-20"
-              />
+              <input className={inputCls} value={sucForm.address} onChange={e => setSucForm(f => ({ ...f, address: e.target.value }))} placeholder="Cra 15 # 85-20" />
             </div>
-            <div>
-              <label className={lblCls}>Ruta relacionada</label>
-              <div className="w-full border border-gray-700 rounded-lg px-3 py-2 text-sm bg-gray-900 text-gray-300">
-                {editingSuc ? getRouteName(editingSuc.routeId) : 'Sin ruta asignada'}
+            {editingSuc?.routeId && (
+              <div>
+                <label className={lblCls}>Ruta relacionada</label>
+                <div className="w-full border border-gray-700 rounded-lg px-3 py-2 text-sm bg-gray-900 text-gray-300">
+                  {getRouteName(editingSuc.routeId)}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">La ruta es asignada por Distribuciones DAVAL.</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                La ruta es asignada por Distribuciones DAVAL.
-              </p>
-            </div>
-            <div>
-              <label className={lblCls}>Asesor asignado</label>
-              <select
-                className={inputCls}
-                value={sucForm.advisorId}
-                onChange={e => setSucForm(f => ({ ...f, advisorId: e.target.value }))}
-              >
-                <option value="">Sin asesor asignado</option>
-                {advisors.map(advisor => (
-                  <option key={advisor.id} value={advisor.id}>{advisor.name}</option>
-                ))}
-              </select>
-            </div>
+            )}
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setShowSucModal(false)}
-                className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
-              >
+              <button onClick={() => setShowSucModal(false)} className="flex-1 py-2 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition">
                 Cancelar
               </button>
               <button
                 onClick={handleSaveSuc}
-                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                disabled={createBranch.isPending || updateBranch.isPending || !sucForm.name}
+                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-40"
               >
                 {editingSuc ? 'Guardar cambios' : 'Crear sucursal'}
               </button>
@@ -521,7 +411,7 @@ export default function ClientManage() {
           message={
             confirmDelete.message ||
             (confirmDelete.type === 'user'
-              ? `Confirma que deseas eliminar el usuario "${confirmDelete.label}".`
+              ? `Confirma que deseas desactivar el usuario "${confirmDelete.label}".`
               : `Confirma que deseas eliminar la sucursal "${confirmDelete.label}".`)
           }
           onCancel={() => setConfirmDelete(null)}

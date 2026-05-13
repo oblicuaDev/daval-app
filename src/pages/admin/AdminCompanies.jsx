@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plus, X, Building, GitBranch, ChevronDown, ChevronUp, Phone, MapPin, Edit2, Trash2, Route, UserCog } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCreateBranch, useUpdateBranch, useDeleteBranch } from '../../hooks/useCompanies.js';
+import { useUsers } from '../../hooks/useUsers.js';
+import { useRoutes } from '../../hooks/useRoutes.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 function Modal({ title, onClose, children }) {
@@ -24,8 +25,16 @@ const EMPTY_COMPANY = { name: '', nit: '', email: '', phone: '', address: '' };
 const EMPTY_SUCURSAL = { name: '', address: '', city: '', routeId: '', advisorId: '' };
 
 export default function AdminCompanies() {
-  const { companies, setCompanies, routes } = useApp();
-  const { users } = useAuth();
+  const { data: companies = [], isLoading } = useCompanies();
+  const { data: allUsers = [] } = useUsers({ role: 'advisor' });
+  const { data: routes = [] } = useRoutes();
+  const createCompany = useCreateCompany();
+  const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
+  const createBranch = useCreateBranch();
+  const updateBranch = useUpdateBranch();
+  const deleteBranch = useDeleteBranch();
+
   const [expandedId, setExpandedId] = useState(null);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
@@ -34,13 +43,11 @@ export default function AdminCompanies() {
   const [sucursalTargetCompanyId, setSucursalTargetCompanyId] = useState(null);
   const [editingSucursal, setEditingSucursal] = useState(null);
   const [sucursalForm, setSucursalForm] = useState(EMPTY_SUCURSAL);
-  const [nextCompanyId, setNextCompanyId] = useState(100);
-  const [nextSucursalId, setNextSucursalId] = useState(100);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500';
   const labelClass = 'block text-sm font-medium text-gray-300 mb-1';
-  const advisors = users.filter(user => user.role === 'advisor');
+  const advisors = allUsers.filter(u => u.role === 'advisor');
 
   function openCreateCompany() {
     setEditingCompany(null);
@@ -54,20 +61,18 @@ export default function AdminCompanies() {
     setShowCompanyModal(true);
   }
 
-  function handleSaveCompany() {
+  async function handleSaveCompany() {
     if (!companyForm.name) return;
     if (editingCompany) {
-      setCompanies(prev => prev.map(c => c.id === editingCompany.id ? { ...c, ...companyForm } : c));
+      await updateCompany.mutateAsync({ id: editingCompany.id, body: companyForm });
     } else {
-      const newCompany = { id: nextCompanyId, ...companyForm, active: true, sucursales: [] };
-      setCompanies(prev => [...prev, newCompany]);
-      setNextCompanyId(n => n + 1);
+      await createCompany.mutateAsync({ ...companyForm, active: true });
     }
     setShowCompanyModal(false);
   }
 
-  function handleDeleteCompany(id) {
-    setCompanies(prev => prev.filter(c => c.id !== id));
+  async function handleDeleteCompany(id) {
+    await deleteCompany.mutateAsync(id);
     if (expandedId === id) setExpandedId(null);
   }
 
@@ -91,29 +96,23 @@ export default function AdminCompanies() {
     setShowSucursalModal(true);
   }
 
-  function handleSaveSucursal() {
+  async function handleSaveSucursal() {
     if (!sucursalForm.name) return;
     const payload = {
       ...sucursalForm,
-      routeId: sucursalForm.routeId ? Number(sucursalForm.routeId) : null,
-      advisorId: sucursalForm.advisorId ? Number(sucursalForm.advisorId) : null,
+      routeId: sucursalForm.routeId || null,
+      advisorId: sucursalForm.advisorId || null,
     };
-    setCompanies(prev => prev.map(c => {
-      if (c.id !== sucursalTargetCompanyId) return c;
-      if (editingSucursal) {
-        return { ...c, sucursales: c.sucursales.map(s => s.id === editingSucursal.id ? { ...s, ...payload } : s) };
-      }
-      const newSuc = { id: nextSucursalId, ...payload, active: true };
-      setNextSucursalId(n => n + 1);
-      return { ...c, sucursales: [...c.sucursales, newSuc] };
-    }));
+    if (editingSucursal) {
+      await updateBranch.mutateAsync({ companyId: sucursalTargetCompanyId, branchId: editingSucursal.id, body: payload });
+    } else {
+      await createBranch.mutateAsync({ companyId: sucursalTargetCompanyId, body: { ...payload, active: true } });
+    }
     setShowSucursalModal(false);
   }
 
-  function handleDeleteSucursal(companyId, sucursalId) {
-    setCompanies(prev => prev.map(c =>
-      c.id === companyId ? { ...c, sucursales: c.sucursales.filter(s => s.id !== sucursalId) } : c
-    ));
+  async function handleDeleteSucursal(companyId, sucursalId) {
+    await deleteBranch.mutateAsync({ companyId, branchId: sucursalId });
   }
 
   function confirmDeleteAction() {
@@ -181,7 +180,7 @@ export default function AdminCompanies() {
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <span className="text-xs text-gray-500 mr-2">
-                  {company.sucursales.length} sucursal{company.sucursales.length !== 1 ? 'es' : ''}
+                  {company.branches.length} sucursal{company.branches.length !== 1 ? 'es' : ''}
                 </span>
                 <button onClick={() => openEditCompany(company)} className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-950 rounded-lg transition">
                   <Edit2 className="w-4 h-4" />
@@ -214,11 +213,11 @@ export default function AdminCompanies() {
                   </button>
                 </div>
 
-                {company.sucursales.length === 0 ? (
+                {company.branches.length === 0 ? (
                   <p className="text-xs text-gray-600 py-2">Sin sucursales registradas</p>
                 ) : (
                   <div className="space-y-2">
-                    {company.sucursales.map(suc => (
+                    {(company.branches ?? []).map(suc => (
                       <div key={suc.id} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 border border-gray-700">
                         <div className="w-7 h-7 bg-emerald-950 text-emerald-400 rounded-lg flex items-center justify-center flex-shrink-0">
                           <GitBranch className="w-3.5 h-3.5" />

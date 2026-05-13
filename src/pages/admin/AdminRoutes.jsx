@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CalendarDays,
   Crosshair,
@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useRoutes, useCreateRoute, useUpdateRoute, useDeleteRoute } from '../../hooks/useRoutes.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 const WEEK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -319,17 +319,16 @@ function CoverageMap({ form, onCoverageChange, onGeocodeStatus }) {
 }
 
 export default function AdminRoutes() {
-  const { routes, setRoutes } = useApp();
+  const { data: routes = [], isLoading } = useRoutes();
+  const createRoute = useCreateRoute();
+  const updateRoute = useUpdateRoute();
+  const deleteRoute = useDeleteRoute();
+
   const [showModal, setShowModal] = useState(false);
   const [editingRoute, setEditingRoute] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [geocodeStatus, setGeocodeStatus] = useState('idle');
   const [routeToDelete, setRouteToDelete] = useState(null);
-
-  const nextId = useMemo(
-    () => routes.reduce((max, route) => Math.max(max, route.id), 0) + 1,
-    [routes]
-  );
 
   const inputClass = 'w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-gray-100 placeholder-gray-500';
   const readOnlyClass = 'w-full border border-gray-700 rounded-lg px-3 py-2 text-sm bg-gray-900 text-gray-300 cursor-default';
@@ -369,22 +368,34 @@ export default function AdminRoutes() {
     setShowModal(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name || !form.day || !form.cutoffTime || !form.bounds) return;
-
+    const body = {
+      name: form.name,
+      day: form.day,
+      cutoffTime: form.cutoffTime,
+      city: form.city,
+      mapZone: form.mapZone,
+      quadrantId: form.quadrantId,
+      quadrantName: form.quadrantName,
+      streetFrom: form.streetFrom,
+      streetTo: form.streetTo,
+      carreraFrom: form.carreraFrom,
+      carreraTo: form.carreraTo,
+      bounds: form.bounds,
+      center: form.center,
+      active: form.active,
+    };
     if (editingRoute) {
-      setRoutes(prev => prev.map(route =>
-        route.id === editingRoute.id ? { ...route, ...form } : route
-      ));
+      await updateRoute.mutateAsync({ id: editingRoute.id, body });
     } else {
-      setRoutes(prev => [...prev, { id: nextId, ...form }]);
+      await createRoute.mutateAsync(body);
     }
-
     setShowModal(false);
   }
 
-  function handleDelete(routeId) {
-    setRoutes(prev => prev.filter(route => route.id !== routeId));
+  async function handleDelete(routeId) {
+    await deleteRoute.mutateAsync(routeId);
   }
 
   return (
@@ -403,7 +414,11 @@ export default function AdminRoutes() {
         </button>
       </div>
 
-      {routes.length === 0 ? (
+      {isLoading ? (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 px-5 py-16 text-center">
+          <p className="text-sm text-gray-500">Cargando rutas…</p>
+        </div>
+      ) : routes.length === 0 ? (
         <div className="bg-gray-800 rounded-xl border border-gray-700 px-5 py-16 text-center">
           <Map className="w-12 h-12 text-gray-700 mx-auto mb-3" />
           <p className="text-sm text-gray-500">No hay rutas registradas</p>

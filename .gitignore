@@ -16,6 +16,9 @@ api/.env.*
 *.log
 logs/
 
+# Uploads (imágenes subidas por usuarios — no van en git)
+api/uploads/*
+!api/uploads/.gitkeep
 
 CLAUDE.md
 ACCESSIBILITY_AUDIT.md

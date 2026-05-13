@@ -12,12 +12,6 @@ const WEEK_DAY_INDEX = {
 
 const WEEK_DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-export function getClientRoute(currentUser, companies, routes) {
-  const company = companies.find(item => item.id === currentUser?.companyId);
-  const sucursal = company?.sucursales?.find(item => item.id === currentUser?.sucursalId);
-  const route = routes.find(item => item.id === sucursal?.routeId);
-  return { company, sucursal, route };
-}
 
 export function getRouteCutoffStatus(route, now = new Date()) {
   if (!route?.day || !route?.cutoffTime) {
