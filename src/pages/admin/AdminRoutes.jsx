@@ -193,6 +193,12 @@ function CoverageMap({ form, onCoverageChange, onGeocodeStatus }) {
       .then(maps => {
         if (!mounted || !mapNodeRef.current) return;
 
+        // Detectar error de billing/API de Google Maps antes de inicializar
+        if (!maps.Map) {
+          setLoadError('Google Maps no pudo inicializar. Verifica que Maps JavaScript API y Geocoding API estén habilitadas en Google Cloud Console y que haya billing configurado.');
+          return;
+        }
+
         const map = new maps.Map(mapNodeRef.current, {
           center: form.center || DEFAULT_CENTER,
           zoom: 13,
@@ -274,12 +280,15 @@ function CoverageMap({ form, onCoverageChange, onGeocodeStatus }) {
 
   if (loadError) {
     return (
-      <div className="bg-gray-900 border border-red-900 rounded-xl p-6">
-        <div className="flex items-center gap-2 text-red-300 font-semibold mb-2">
+      <div className="bg-gray-900 border border-red-900 rounded-xl p-6 space-y-2">
+        <div className="flex items-center gap-2 text-red-300 font-semibold">
           <Map className="w-4 h-4" />
-          Google Maps no cargó
+          Google Maps no disponible
         </div>
         <p className="text-sm text-gray-400">{loadError}</p>
+        <p className="text-xs text-gray-500">
+          Verificar en Google Cloud Console: Maps JavaScript API, Geocoding API habilitadas y billing activo.
+        </p>
       </div>
     );
   }
