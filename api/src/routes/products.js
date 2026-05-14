@@ -1,13 +1,12 @@
 import { Router } from 'express';
-import path from 'path';
-import fs from 'fs';
 import { z } from 'zod';
 import { query } from '../config/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../lib/validate.js';
 import { resolvePrices } from '../lib/pricing.js';
 import { ApiError } from '../middleware/error.js';
-import { handleUpload, UPLOADS_DIR } from '../middleware/upload.js';
+import { handleUpload, generateFilename } from '../middleware/upload.js';
+import { uploadToStorage, deleteFromStorage } from '../lib/storage.js';
 
 const router = Router();
 
@@ -103,29 +102,21 @@ router.post('/', requireAuth, requireRole('admin'), asyncHandler(async (req, res
 router.post('/:id/image', requireAuth, requireRole('admin'), handleUpload, asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'NO_FILE', 'No image file provided');
 
-  const imageUrl = `/uploads/${req.file.filename}`;
-
-  // Fetch old image URL before updating
   const old = await query('SELECT image_url FROM products WHERE id = $1', [req.params.id]);
-  if (!old.rows[0]) {
-    fs.unlink(req.file.path, () => { });
-    throw new ApiError(404, 'NOT_FOUND', 'Product not found');
-  }
+  if (!old.rows[0]) throw new ApiError(404, 'NOT_FOUND', 'Product not found');
+
+  // Subir a Supabase Storage (Buffer en memoria)
+  const filename = generateFilename(req.file);
+  const imageUrl = await uploadToStorage(req.file.buffer, filename, req.file.mimetype);
 
   const r = await query(
     'UPDATE products SET image_url = $1, updated_at = NOW() WHERE id = $2 RETURNING id, image_url',
     [imageUrl, req.params.id]
   );
-  if (!r.rowCount) {
-    fs.unlink(req.file.path, () => { });
-    throw new ApiError(404, 'NOT_FOUND', 'Product not found');
-  }
+  if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Product not found');
 
-  // Delete previous local upload (ignore errors — external URLs are left alone)
-  const oldUrl = old.rows[0].image_url ?? '';
-  if (oldUrl.startsWith('/uploads/')) {
-    fs.unlink(path.join(UPLOADS_DIR, path.basename(oldUrl)), () => { });
-  }
+  // Eliminar imagen anterior de Supabase Storage (fire-and-forget)
+  deleteFromStorage(old.rows[0].image_url ?? '').catch(() => { });
 
   res.json({ imageUrl });
 }));

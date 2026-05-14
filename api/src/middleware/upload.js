@@ -1,29 +1,9 @@
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-export const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
-
-// Auto-create uploads directory on startup
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const unique = crypto.randomBytes(16).toString('hex');
-    cb(null, `${unique}${ext}`);
-  },
-});
 
 function fileFilter(_req, file, cb) {
   if (ALLOWED_MIME.has(file.mimetype)) {
@@ -35,13 +15,14 @@ function fileFilter(_req, file, cb) {
   }
 }
 
+// Memory storage — compatible con Vercel (sin disco persistente)
 export const uploadSingle = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_SIZE_BYTES, files: 1 },
   fileFilter,
 }).single('image');
 
-/** Wraps multer.single so errors surface as proper ApiError shapes. */
+/** Wraps multer.single para que los errores lleguen como ApiError shapes. */
 export function handleUpload(req, res, next) {
   uploadSingle(req, res, (err) => {
     if (!err) return next();
@@ -57,4 +38,10 @@ export function handleUpload(req, res, next) {
     }
     next(err);
   });
+}
+
+/** Genera nombre único para el archivo subido. */
+export function generateFilename(file) {
+  const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+  return `${crypto.randomBytes(16).toString('hex')}${ext}`;
 }

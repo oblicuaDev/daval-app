@@ -1,61 +1,12 @@
-import 'dotenv/config';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import express from 'express';
-import cors from 'cors';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-import authRouter from './routes/auth.js';
-import productsRouter from './routes/products.js';
-import quotationsRouter from './routes/quotations.js';
-import routesRouter from './routes/routes.js';
-import adminRouter from './routes/admin.js';
-import siigoRouter from './routes/siigo.js';
-import { errorHandler, notFound } from './middleware/error.js';
+// Servidor local de desarrollo — en Vercel se usa api/index.js en su lugar
+import app from './app.js';
 import pool from './config/db.js';
 import { resetStuckSync } from './services/siigoSync.js';
-
-const app = express();
-
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*', credentials: true }));
-app.use(express.json({ limit: '2mb' }));
-
-// Serve uploaded product images as public static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-  maxAge: '7d',
-  immutable: false,
-}));
-
-app.get('/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ ok: true, ts: new Date().toISOString(), db: 'connected' });
-  } catch (err) {
-    res.status(503).json({ ok: false, ts: new Date().toISOString(), db: err.message });
-  }
-});
-
-app.use('/auth', authRouter);
-app.use('/products', productsRouter);
-app.use('/quotations', quotationsRouter);
-app.use('/routes', routesRouter);
-app.use('/stats', adminRouter.stats);
-app.use('/categories', adminRouter.categories);
-app.use('/price-lists', adminRouter.priceLists);
-app.use('/companies', adminRouter.companies);
-app.use('/promotions', adminRouter.promotions);
-app.use('/users', adminRouter.users);
-app.use('/integrations/siigo', siigoRouter);
-
-app.use(notFound);
-app.use(errorHandler);
 
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {
   console.log(`[daval-api] listening on :${port} (TZ=${process.env.TZ})`);
 
-  // Pre-warm the DB pool so the first real request never hits a cold connection.
   pool.query('SELECT 1')
     .then(() => console.log('[DB] Pool listo'))
     .catch((err) => console.error('[DB] Warmup falló (no es fatal):', err.message));

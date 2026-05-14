@@ -3,9 +3,12 @@ import pg from 'pg';
 const { Pool } = pg;
 
 function buildConfig() {
+  // En serverless (Vercel) se usan pocos connections y se liberan rápido para
+  // no agotar el límite de Supabase (25 conexiones simultáneas en plan free).
+  const isServerless = process.env.NODE_ENV === 'production' && !process.env.PORT;
   const base = {
-    max:                     Number(process.env.DB_MAX_CONNECTIONS) || 10,
-    idleTimeoutMillis:       30_000,
+    max:                     isServerless ? 2 : (Number(process.env.DB_MAX_CONNECTIONS) || 10),
+    idleTimeoutMillis:       isServerless ? 1_000 : 30_000,
     connectionTimeoutMillis: 15_000,
   };
 
