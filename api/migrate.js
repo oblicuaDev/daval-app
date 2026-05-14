@@ -63,18 +63,15 @@ const STEPS = [
   { name: '003_perf_indexes',        file: 'migrations/003_perf_indexes.sql' },
   { name: '004_geo_and_cleanup',     file: 'migrations/004_geo_and_cleanup.sql' },
   { name: '005_routes_geocols',      file: 'migrations/005_routes_geocols.sql' },
-  { name: '006_uq_product_price_list', file: '../database/alter.pgsql',
-    // alter.pgsql está una carpeta arriba de database/migrations — apuntamos al raíz
-    file: 'alter.pgsql' },
+  { name: '006_uq_product_price_list',     file: 'alter.pgsql' },
   { name: '007_siigo_quote_integrations', file: 'migrations/007_siigo_quote_integrations.sql' },
   { name: '008_siigo_seller_id',          file: 'migrations/008_siigo_seller_id.sql' },
-  { name: '009_permanent_promotions',          file: 'migrations/009_permanent_promotions.sql' },
-  { name: '010_catalog_sync_fix',          file: 'migrations/010_catalog_sync_fix.sql' },
+  { name: '009_permanent_promotions',     file: 'migrations/009_permanent_promotions.sql' },
+  { name: '010_catalog_sync_fix',         file: 'migrations/010_catalog_sync_fix.sql' },
+  { name: '011_siigo_customer_sync',      file: 'migrations/011_siigo_customer_sync.sql' },
+  { name: '012_fix_siigo_customer_names', file: 'migrations/012_fix_siigo_customer_names.sql' },
   ...(SEED ? [{ name: 'seed_001_initial', file: 'seeds/001_initial.sql' }] : []),
 ];
-
-// Corregir: alter.pgsql está en database/, no en database/migrations/
-STEPS.find(s => s.name === '006_uq_product_price_list').file = 'alter.pgsql';
 
 // ── 3. Runner ─────────────────────────────────────────────────────────────────
 async function main() {

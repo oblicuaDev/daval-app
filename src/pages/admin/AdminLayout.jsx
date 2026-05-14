@@ -37,7 +37,8 @@ const NAV_GROUPS = [
   {
     label: 'Sistema',
     items: [
-      { to: '/admin/integraciones', label: 'Integraciones', icon: Plug },
+      { to: '/admin/integraciones',                  label: 'Integraciones',    icon: Plug },
+      { to: '/admin/integraciones/clientes-siigo',   label: 'Clientes SIIGO',   icon: Users },
     ],
   },
 ];

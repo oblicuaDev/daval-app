@@ -16,5 +16,5 @@ export const quotationsApi = {
   update: (id, body) =>
     apiClient.patch(`/quotations/${id}`, body).then(r => r.data),
   sendToSiigo: (id) =>
-    apiClient.post(`/quotations/${id}/send-to-siigo`).then(r => r.data),
+    apiClient.post(`/integrations/siigo/quotes/${id}`).then(r => r.data),
 };

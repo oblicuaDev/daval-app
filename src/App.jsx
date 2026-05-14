@@ -22,7 +22,8 @@ const AdminOrderDetail  = lazy(() => import('./pages/admin/AdminOrderDetail'));
 const AdminCompanies    = lazy(() => import('./pages/admin/AdminCompanies'));
 const AdminRoutes       = lazy(() => import('./pages/admin/AdminRoutes'));
 const AdminPromotions   = lazy(() => import('./pages/admin/AdminPromotions'));
-const AdminIntegrations = lazy(() => import('./pages/admin/AdminIntegrations'));
+const AdminIntegrations     = lazy(() => import('./pages/admin/AdminIntegrations'));
+const AdminSiigoCustomers   = lazy(() => import('./pages/admin/AdminSiigoCustomers'));
 
 // Client role
 const ClientLayout       = lazy(() => import('./pages/client/ClientLayout'));
@@ -87,7 +88,8 @@ export default function App() {
               <Route path="pedidos"             element={<Navigate to="../cotizaciones" replace />} />
               <Route path="rutas"               element={<AdminRoutes />} />
               <Route path="asesores"            element={<AdminUsers />} />
-              <Route path="integraciones"       element={<AdminIntegrations />} />
+              <Route path="integraciones"                    element={<AdminIntegrations />} />
+              <Route path="integraciones/clientes-siigo"   element={<AdminSiigoCustomers />} />
             </Route>
 
             {/* Client */}

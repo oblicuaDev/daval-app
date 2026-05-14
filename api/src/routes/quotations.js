@@ -86,13 +86,12 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     for (const it of body.items) {
       const p = priceMap.get(it.productId);
       const priceType = p.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
-      const subtotal = p.finalPrice * it.quantity;
-      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4},$${pi+5})`);
-      itemParams.push(quotation.id, it.productId, it.quantity, priceType, p.finalPrice, subtotal);
-      pi += 6;
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, p.finalPrice);
+      pi += 5;
     }
     await conn.query(
-      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price, subtotal)
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price)
        VALUES ${itemValues.join(',')}`,
       itemParams
     );
@@ -174,20 +173,6 @@ router.patch('/:id/status', requireAuth, requireRole('admin','advisor'), asyncHa
   res.json(r.rows[0]);
 }));
 
-// SIIGO sync trigger (mock)
-router.post('/:id/send-to-siigo', requireAuth, requireRole('admin','advisor'), asyncHandler(async (req, res) => {
-  const fakeId = `SIIGO-${Date.now()}`;
-  const fakeUrl = `https://siigo.local/quotation/${fakeId}`;
-  const r = await query(
-    `UPDATE quotations
-        SET siigo_quotation_id=$1, siigo_url=$2, status='synced', updated_at=NOW()
-      WHERE id=$3 RETURNING id, siigo_quotation_id, siigo_url, status`,
-    [fakeId, fakeUrl, req.params.id]
-  );
-  if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Quotation not found');
-  res.json(r.rows[0]);
-}));
-
 // Clone quotation — reuse items with fresh prices
 router.post('/:id/clone', requireAuth, asyncHandler(async (req, res) => {
   const source = await loadQuotation(req.params.id, req.user);
@@ -230,13 +215,12 @@ router.post('/:id/clone', requireAuth, asyncHandler(async (req, res) => {
       const p = priceMap.get(it.productId);
       const priceType = p?.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
       const unitPrice = p?.finalPrice ?? it.unitPrice;
-      const subtotal = unitPrice * it.quantity;
-      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4},$${pi+5})`);
-      itemParams.push(quotation.id, it.productId, it.quantity, priceType, unitPrice, subtotal);
-      pi += 6;
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, unitPrice);
+      pi += 5;
     }
     await conn.query(
-      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price, subtotal) VALUES ${itemValues.join(',')}`,
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price) VALUES ${itemValues.join(',')}`,
       itemParams
     );
     await conn.query('COMMIT');

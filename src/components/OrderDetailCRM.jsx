@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useAddComment, useUpdateQuotation } from '../hooks/useQuotations.js';
+import { useAddComment, useUpdateQuotation, useSendToSiigo } from '../hooks/useQuotations.js';
 import { useUsers } from '../hooks/useUsers.js';
 import {
   ArrowLeft, CheckCircle2, Save, Send,
   Paperclip, FileText, File, ImageIcon,
   MessageSquare, User, Calendar, Package,
-  UserCog, Download, ExternalLink,
+  UserCog, Download, ExternalLink, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import { formatCOP } from '../utils/format.js';
 
@@ -52,10 +52,24 @@ export default function OrderDetailCRM({
 
   const addComment      = useAddComment(order.id);
   const updateQuotation = useUpdateQuotation();
+  const sendToSiigo     = useSendToSiigo();
   const { data: advisors = [] } = useUsers({ role: 'advisor' });
+
+  const [siigoError, setSiigoError] = useState(null);
 
   const comments    = order.comments    || [];
   const attachments = order.attachments || [];
+
+  const isSyncedReal = order.siigoQuotationId && !order.siigoQuotationId.startsWith('SIIGO-');
+
+  async function handleSendToSiigo() {
+    setSiigoError(null);
+    try {
+      await sendToSiigo.mutateAsync(order.id);
+    } catch (err) {
+      setSiigoError(err?.response?.data?.message || 'Error al enviar a SIIGO');
+    }
+  }
 
   async function handleSave() {
     const body = { siigoUrl: siigoUrl.trim() };
@@ -165,6 +179,32 @@ export default function OrderDetailCRM({
                 <ExternalLink className="w-4 h-4 text-blue-400" />
                 Integración Siigo
               </h3>
+
+              {currentUser?.role === 'admin' && (
+                <div>
+                  {isSyncedReal ? (
+                    <div className="flex items-center gap-2 text-sm text-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                      <span>Sincronizado: <span className="font-mono font-semibold">{order.siigoQuotationId}</span></span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleSendToSiigo}
+                      disabled={sendToSiigo.isPending}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${sendToSiigo.isPending ? 'animate-spin' : ''}`} />
+                      {sendToSiigo.isPending ? 'Enviando…' : 'Enviar a SIIGO'}
+                    </button>
+                  )}
+                  {siigoError && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      {siigoError}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Link para ver cotización en Siigo</label>

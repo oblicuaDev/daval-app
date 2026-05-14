@@ -297,6 +297,16 @@ export async function pushQuoteToSiigo(quoteId, triggeredBy, { force = false } =
   const siigoCustomer = await validateSiigoCustomer(quotation.clientNit);
   console.log(`[siigoQuote] cliente validado en SIIGO: ${siigoCustomer.id ?? siigoCustomer.identification}`);
 
+  // Resolver SIIGO seller ID del asesor
+  let sellerId = null;
+  if (quotation.advisorId) {
+    const sellerRow = await query(
+      `SELECT siigo_seller_id FROM users WHERE id = $1`,
+      [quotation.advisorId]
+    );
+    sellerId = sellerRow.rows[0]?.siigo_seller_id ?? null;
+  }
+
   // 6. Construir payload SIIGO
   const payload = buildSiigoQuotePayload({
     id:    quotation.id,
@@ -307,9 +317,7 @@ export async function pushQuoteToSiigo(quoteId, triggeredBy, { force = false } =
       identification: quotation.clientNit,
       branchOffice:   siigoCustomer.branch_office ?? 0,
     },
-    // TODO: Mapear advisorId (UUID) → SIIGO seller numeric ID.
-    //       Agrega siigo_seller_id a la tabla users y úsalo aquí.
-    sellerId: null,
+    sellerId,
   });
 
   // 7. Registrar intento pendiente en DB

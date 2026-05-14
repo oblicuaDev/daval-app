@@ -7,6 +7,14 @@ import { asyncHandler } from '../lib/validate.js';
 import { testConnection } from '../lib/siigo/client.js';
 import { startProductsSync, isSyncRunning } from '../services/siigoSync.js';
 import { pushQuoteToSiigo, getIntegrationHistory } from '../services/siigoQuote.js';
+import {
+  previewSiigoCustomers,
+  importSiigoCustomer,
+  importBatch,
+  exportCompanyToSiigo,
+  getCustomerIntegrationHistory,
+  getLocalCompaniesSyncStatus,
+} from '../services/siigoCustomer.js';
 
 const router = Router();
 const adminOnly = [requireAuth, requireRole('admin')];
@@ -152,6 +160,61 @@ router.post('/quotations/:id/push', adminOnly, asyncHandler(async (req, res) => 
     { force: false }
   );
   res.status(201).json(result);
+}));
+
+// =============================================================
+// Clientes (sincronización bidireccional)
+// IMPORTANTE: rutas fijas ANTES de las parametrizadas /:companyId
+// =============================================================
+
+// GET /customers — lista clientes desde SIIGO con estado local enriquecido
+router.get('/customers', adminOnly, asyncHandler(async (req, res) => {
+  const { page, page_size, name, identification } = req.query;
+  const result = await previewSiigoCustomers({
+    page:           Number(page ?? 1),
+    pageSize:       Number(page_size ?? 25),
+    name:           name || undefined,
+    identification: identification || undefined,
+  });
+  res.json(result);
+}));
+
+// GET /customers/local — empresas locales con estado de sync SIIGO
+router.get('/customers/local', adminOnly, asyncHandler(async (req, res) => {
+  const { sync_status, limit } = req.query;
+  const items = await getLocalCompaniesSyncStatus({
+    syncStatus: sync_status || undefined,
+    limit:      Number(limit ?? 100),
+  });
+  res.json({ items });
+}));
+
+// POST /customers/import — importación masiva { siigoIds: [...] }
+router.post('/customers/import', adminOnly, asyncHandler(async (req, res) => {
+  const { siigoIds } = z.object({
+    siigoIds: z.array(z.string().min(1)).min(1).max(100),
+  }).parse(req.body);
+
+  const results = await importBatch(siigoIds, req.user.sub);
+  res.status(207).json(results); // 207 Multi-Status: puede tener éxitos y errores
+}));
+
+// POST /customers/import/:siigoId — importar cliente individual
+router.post('/customers/import/:siigoId', adminOnly, asyncHandler(async (req, res) => {
+  const result = await importSiigoCustomer(req.params.siigoId, req.user.sub);
+  res.status(result.isNew ? 201 : 200).json(result);
+}));
+
+// POST /customers/:companyId/export — exportar empresa local → SIIGO
+router.post('/customers/:companyId/export', adminOnly, asyncHandler(async (req, res) => {
+  const result = await exportCompanyToSiigo(req.params.companyId, req.user.sub);
+  res.status(201).json(result);
+}));
+
+// GET /customers/:companyId/history — historial de integraciones de una empresa
+router.get('/customers/:companyId/history', adminOnly, asyncHandler(async (req, res) => {
+  const items = await getCustomerIntegrationHistory(req.params.companyId);
+  res.json({ items });
 }));
 
 export default router;
