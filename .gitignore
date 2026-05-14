@@ -34,3 +34,4 @@ infra
 # Backups de BD (pueden contener datos sensibles)
 backup*.sql
 *.sql.bak
+.vercel

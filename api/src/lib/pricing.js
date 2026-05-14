@@ -45,7 +45,8 @@ export async function resolvePrices({ productIds, priceListId, clientId }) {
            JOIN promotion_prices pp ON pp.promotion_id = pr.id
       LEFT JOIN promotion_clients pc ON pc.promotion_id = pr.id
           WHERE pr.active = TRUE
-            AND NOW() BETWEEN pr.starts_at AND pr.ends_at
+            AND NOW() >= pr.starts_at
+            AND (pr.ends_at IS NULL OR NOW() <= pr.ends_at)
             AND pp.sku = ANY($1::text[])
             AND (pr.scope = 'all' OR pc.client_id = $2::uuid)
           GROUP BY pp.sku`,

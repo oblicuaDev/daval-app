@@ -74,7 +74,7 @@ export default function AdminProducts() {
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCategory
-      ? p.categoryId === Number(filterCategory)
+      ? String(p.categoryId) === String(filterCategory)
       : true;
     const matchQuality = filterQuality
       ? (p.quality || "standard") === filterQuality
@@ -107,7 +107,7 @@ export default function AdminProducts() {
     setForm({
       name: product.name,
       sku: product.sku,
-      categoryId: String(product.categoryId),
+      categoryId: product.categoryId != null ? String(product.categoryId) : '',
       description: product.description || "",
       basePrice: String(product.basePrice),
       stock: String(product.stock ?? 0),
@@ -135,7 +135,7 @@ export default function AdminProducts() {
   }
 
   async function handleSave() {
-    if (!form.name || !form.sku || !form.categoryId || !form.basePrice) return;
+    if (!form.name || !form.sku || !form.basePrice) return;
 
     setUploadError("");
 
@@ -143,14 +143,14 @@ export default function AdminProducts() {
       const payload = {
         name: form.name,
         sku: form.sku,
-        categoryId: Number(form.categoryId),
+        // Enviar raw (string UUID o integer) — el backend acepta ambos con z.union
+        categoryId: form.categoryId || null,
         description: form.description,
         basePrice: Number(form.basePrice),
         stock: Number(form.stock || 0),
         unit: form.unit,
         quality: form.quality,
         active: form.active,
-        complementaryIds: form.complementaryIds || [],
       };
 
       let savedId = editProduct?.id;

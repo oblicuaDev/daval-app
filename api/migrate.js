@@ -68,6 +68,8 @@ const STEPS = [
     file: 'alter.pgsql' },
   { name: '007_siigo_quote_integrations', file: 'migrations/007_siigo_quote_integrations.sql' },
   { name: '008_siigo_seller_id',          file: 'migrations/008_siigo_seller_id.sql' },
+  { name: '009_permanent_promotions',          file: 'migrations/009_permanent_promotions.sql' },
+  { name: '010_catalog_sync_fix',          file: 'migrations/010_catalog_sync_fix.sql' },
   ...(SEED ? [{ name: 'seed_001_initial', file: 'seeds/001_initial.sql' }] : []),
 ];
 

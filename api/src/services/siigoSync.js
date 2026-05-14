@@ -21,6 +21,27 @@ export async function isSyncRunning() {
   return r.rows[0]?.last_sync_status === 'running';
 }
 
+/** Resetea syncs atascados (llamar al arrancar el servidor). */
+export async function resetStuckSync() {
+  const r = await query(
+    `UPDATE siigo_settings
+        SET last_sync_status = 'error',
+            last_sync_error = 'Reset al reiniciar servidor',
+            last_sync_finished_at = COALESCE(last_sync_finished_at, NOW()),
+            updated_at = NOW()
+      WHERE last_sync_status = 'running'`
+  );
+  if (r.rowCount > 0) {
+    await query(
+      `UPDATE siigo_sync_logs
+          SET status = 'error', finished_at = COALESCE(finished_at, NOW()),
+              error_message = 'Interrumpido — proceso reiniciado'
+        WHERE status = 'running'`
+    );
+    console.warn('[siigoSync] sync atascado encontrado al arrancar — reseteado a error');
+  }
+}
+
 /** Lanza la sync en background y retorna el log id. No espera a que termine. */
 export async function startProductsSync(triggeredBy) {
   if (await isSyncRunning()) {
@@ -58,31 +79,47 @@ async function runProductsSync(logId) {
   let processed = 0;
   let created = 0;
   let updated = 0;
+  let errors = 0;
+
+  console.log(`[siigoSync] inicio sync — logId=${logId}`);
 
   try {
     while (true) {
+      console.log(`[siigoSync] consultando página ${page} (page_size=${PAGE_SIZE})`);
       const data = await siigoFetch('/v1/products', {
         query: { page_size: PAGE_SIZE, page },
       });
       const results = data?.results ?? [];
-      if (results.length === 0) break;
-
-      for (const raw of results) {
-        const p = mapSiigoProduct(raw);
-        const out = await upsertProduct(p);
-        processed += 1;
-        if (out.created) created += 1; else updated += 1;
+      if (results.length === 0) {
+        console.log(`[siigoSync] página ${page} sin resultados — sync completo`);
+        break;
       }
 
-      // SIIGO devuelve total_results — paramos cuando no hay más páginas
+      for (const raw of results) {
+        try {
+          const p = mapSiigoProduct(raw);
+          const out = await upsertProduct(p);
+          processed += 1;
+          if (out.created) created += 1; else updated += 1;
+        } catch (itemErr) {
+          errors += 1;
+          console.error(`[siigoSync] error procesando producto siigo_id=${raw?.id}:`, itemErr.message);
+        }
+      }
+
       const total = data?.pagination?.total_results;
-      if (typeof total === 'number' && processed >= total) break;
+      console.log(`[siigoSync] página ${page}: ${results.length} items, total=${total ?? '?'}, procesados=${processed}`);
+      if (typeof total === 'number' && processed + errors >= total) break;
       if (results.length < PAGE_SIZE) break;
       page += 1;
     }
 
-    await finishSync(logId, 'success', { processed, created, updated });
+    const status = errors > 0 && processed === 0 ? 'error' : 'success';
+    const errMsg = errors > 0 ? `${errors} producto(s) con error` : null;
+    console.log(`[siigoSync] finalizado — status=${status} created=${created} updated=${updated} errors=${errors}`);
+    await finishSync(logId, status, { processed, created, updated, error: errMsg });
   } catch (err) {
+    console.error('[siigoSync] error fatal en sync:', err.message);
     await finishSync(logId, 'error', { processed, created, updated, error: err.message });
     throw err;
   }
@@ -152,7 +189,9 @@ async function upsertProduct(p) {
     }
 
     // Listas de precios: upsert por (product_id, price_list_name)
+    // Requiere UNIQUE INDEX uniq_ppl_product_price_list_name — creado en migración 010
     for (const pl of p.priceLists) {
+      if (!pl.name) continue;
       await conn.query(
         `INSERT INTO product_price_lists (product_id, price_list_name, price, currency)
          VALUES ($1, $2, $3, $4)
@@ -160,7 +199,7 @@ async function upsertProduct(p) {
            DO UPDATE SET price = EXCLUDED.price,
                          currency = EXCLUDED.currency,
                          updated_at = NOW()`,
-        [productId, pl.name, pl.price, pl.currency]
+        [productId, pl.name, pl.price, pl.currency ?? 'COP']
       );
     }
 

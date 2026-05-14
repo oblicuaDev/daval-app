@@ -4,6 +4,7 @@ import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, use
 import { useUsers } from '../../hooks/useUsers.js';
 import { useRoutes } from '../../hooks/useRoutes.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import AddressAutocomplete from '../../components/AddressAutocomplete.jsx';
 
 function Modal({ title, onClose, children }) {
   return (
@@ -22,7 +23,7 @@ function Modal({ title, onClose, children }) {
 }
 
 const EMPTY_COMPANY = { name: '', nit: '', email: '', phone: '', address: '' };
-const EMPTY_SUCURSAL = { name: '', address: '', city: '', routeId: '', advisorId: '' };
+const EMPTY_SUCURSAL = { name: '', address: '', city: '', routeId: '', advisorId: '', latitude: null, longitude: null };
 
 export default function AdminCompanies() {
   const { data: companies = [], isLoading } = useCompanies();
@@ -91,17 +92,33 @@ export default function AdminCompanies() {
       city: sucursal.city,
       routeId: sucursal.routeId ? String(sucursal.routeId) : '',
       advisorId: sucursal.advisorId ? String(sucursal.advisorId) : '',
+      latitude: sucursal.latitude ?? null,
+      longitude: sucursal.longitude ?? null,
     });
     setSucursalTargetCompanyId(companyId);
     setShowSucursalModal(true);
   }
 
+  function handleAddressSelect({ address, lat, lng, city }) {
+    setSucursalForm(f => ({
+      ...f,
+      address,
+      latitude: lat,
+      longitude: lng,
+      city: city || f.city,
+    }));
+  }
+
   async function handleSaveSucursal() {
     if (!sucursalForm.name) return;
     const payload = {
-      ...sucursalForm,
+      name: sucursalForm.name,
+      address: sucursalForm.address || null,
+      city: sucursalForm.city || null,
       routeId: sucursalForm.routeId || null,
       advisorId: sucursalForm.advisorId || null,
+      latitude: sucursalForm.latitude ?? null,
+      longitude: sucursalForm.longitude ?? null,
     };
     if (editingSucursal) {
       await updateBranch.mutateAsync({ companyId: sucursalTargetCompanyId, branchId: editingSucursal.id, body: payload });
@@ -314,7 +331,18 @@ export default function AdminCompanies() {
             </div>
             <div>
               <label className={labelClass}>Dirección</label>
-              <input className={inputClass} value={sucursalForm.address} onChange={e => setSucursalForm(f => ({ ...f, address: e.target.value }))} placeholder="Cra 15 # 85-20" />
+              <AddressAutocomplete
+                value={sucursalForm.address}
+                onChange={handleAddressSelect}
+                placeholder="Cra 15 # 85-20, Bogotá"
+                className={inputClass}
+              />
+              {sucursalForm.latitude && sucursalForm.longitude && (
+                <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Geocodificado: {sucursalForm.latitude.toFixed(5)}, {sucursalForm.longitude.toFixed(5)}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelClass}>Ruta relacionada</label>

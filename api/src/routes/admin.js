@@ -2,9 +2,10 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { query, getClient } from '../config/db.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requireRole, optionalAuth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/error.js';
 import { asyncHandler } from '../lib/validate.js';
+import { sendAdvisorNewClientEmail } from '../lib/mailer.js';
 
 const adminOnly = [requireAuth, requireRole('admin')];
 
@@ -161,6 +162,8 @@ const BranchSchema = z.object({
   city: z.string().optional(),
   routeId: z.string().uuid().nullable().optional(),
   advisorId: z.string().uuid().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
   active: z.boolean().default(true),
 });
 
@@ -169,7 +172,8 @@ companies.get('/', requireAuth, asyncHandler(async (_req, res) => {
     `SELECT c.id, c.name, c.nit, c.email, c.phone, c.address, c.active,
             COALESCE(json_agg(json_build_object(
               'id', b.id, 'name', b.name, 'address', b.address, 'city', b.city,
-              'routeId', b.route_id, 'advisorId', b.advisor_id, 'active', b.active
+              'routeId', b.route_id, 'advisorId', b.advisor_id, 'active', b.active,
+              'latitude', b.latitude, 'longitude', b.longitude
             )) FILTER (WHERE b.id IS NOT NULL), '[]') AS branches
        FROM companies c
   LEFT JOIN company_branches b ON b.company_id = c.id
@@ -177,13 +181,15 @@ companies.get('/', requireAuth, asyncHandler(async (_req, res) => {
   );
   res.json({ items: r.rows });
 }));
-companies.post('/', adminOnly, asyncHandler(async (req, res) => {
+// POST /companies — público: permite auto-registro de empresas sin sesión previa
+companies.post('/', asyncHandler(async (req, res) => {
   const b = CompanySchema.parse(req.body);
   const r = await query(
     `INSERT INTO companies (name, nit, email, phone, address, active)
      VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
     [b.name, b.nit, b.email ?? null, b.phone ?? null, b.address ?? null, b.active]
   );
+  console.log(`[companies] nueva empresa registrada: ${b.name} (NIT ${b.nit})`);
   res.status(201).json({ id: r.rows[0].id });
 }));
 companies.put('/:id', adminOnly, asyncHandler(async (req, res) => {
@@ -204,12 +210,17 @@ companies.put('/:id', adminOnly, asyncHandler(async (req, res) => {
   res.json({ id: r.rows[0].id });
 }));
 
-companies.post('/:id/branches', adminOnly, asyncHandler(async (req, res) => {
+// POST /companies/:id/branches — público para auto-registro; routeId/advisorId solo para admins
+companies.post('/:id/branches', optionalAuth, asyncHandler(async (req, res) => {
   const b = BranchSchema.parse(req.body);
+  const isAdmin = req.user?.role === 'admin';
   const r = await query(
-    `INSERT INTO company_branches (company_id, name, address, city, route_id, advisor_id, active)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [req.params.id, b.name, b.address ?? null, b.city ?? null, b.routeId ?? null, b.advisorId ?? null, b.active]
+    `INSERT INTO company_branches (company_id, name, address, city, route_id, advisor_id, active, latitude, longitude)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+    [req.params.id, b.name, b.address ?? null, b.city ?? null,
+     isAdmin ? (b.routeId ?? null) : null,
+     isAdmin ? (b.advisorId ?? null) : null,
+     b.active, b.latitude ?? null, b.longitude ?? null]
   );
   res.status(201).json({ id: r.rows[0].id });
 }));
@@ -223,10 +234,12 @@ companies.put('/:id/branches/:branchId', adminOnly, asyncHandler(async (req, res
         route_id = COALESCE($4, route_id),
         advisor_id = COALESCE($5, advisor_id),
         active = COALESCE($6, active),
+        latitude = COALESCE($7, latitude),
+        longitude = COALESCE($8, longitude),
         updated_at = NOW()
-      WHERE id = $7 AND company_id = $8 RETURNING id`,
+      WHERE id = $9 AND company_id = $10 RETURNING id`,
     [b.name ?? null, b.address ?? null, b.city ?? null, b.routeId ?? null, b.advisorId ?? null,
-     b.active ?? null, req.params.branchId, req.params.id]
+     b.active ?? null, b.latitude ?? null, b.longitude ?? null, req.params.branchId, req.params.id]
   );
   if (!r.rowCount) throw new ApiError(404, 'NOT_FOUND', 'Branch not found');
   res.json({ id: r.rows[0].id });
@@ -346,15 +359,20 @@ const promotions = Router();
 const PromotionSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  kind: z.enum(['permanent', 'eventual']).default('eventual'),
   scope: z.enum(['all', 'specific']),
   startsAt: z.string(),
-  endsAt: z.string(),
+  endsAt: z.string().nullable().optional(),
   active: z.boolean().default(true),
+}).superRefine((data, ctx) => {
+  if (data.kind === 'eventual' && !data.endsAt) {
+    ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'endsAt requerido para promociones eventuales' });
+  }
 });
 
 promotions.get('/', requireAuth, asyncHandler(async (_req, res) => {
   const r = await query(
-    `SELECT p.id, p.name, p.description, p.scope, p.starts_at, p.ends_at, p.active,
+    `SELECT p.id, p.name, p.description, p.kind, p.scope, p.starts_at, p.ends_at, p.active,
             COALESCE(json_agg(DISTINCT jsonb_build_object('sku',pp.sku,'price',pp.price))
               FILTER (WHERE pp.sku IS NOT NULL), '[]') AS prices,
             COALESCE(json_agg(DISTINCT pc.client_id) FILTER (WHERE pc.client_id IS NOT NULL), '[]') AS client_ids
@@ -364,7 +382,8 @@ promotions.get('/', requireAuth, asyncHandler(async (_req, res) => {
       GROUP BY p.id ORDER BY p.starts_at DESC`
   );
   res.json({ items: r.rows.map(x => ({
-    id: x.id, name: x.name, description: x.description, scope: x.scope,
+    id: x.id, name: x.name, description: x.description,
+    kind: x.kind ?? 'eventual', scope: x.scope,
     startsAt: x.starts_at, endsAt: x.ends_at, active: x.active,
     prices: x.prices, clientIds: x.client_ids,
   }))});
@@ -378,9 +397,9 @@ promotions.post('/', adminOnly, asyncHandler(async (req, res) => {
   try {
     await conn.query('BEGIN');
     const r = await conn.query(
-      `INSERT INTO promotions (name, description, scope, starts_at, ends_at, active)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [b.name, b.description ?? null, b.scope, b.startsAt, b.endsAt, b.active]
+      `INSERT INTO promotions (name, description, kind, scope, starts_at, ends_at, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [b.name, b.description ?? null, b.kind, b.scope, b.startsAt, b.endsAt ?? null, b.active]
     );
     const id = r.rows[0].id;
     if (prices.length) {
@@ -406,10 +425,13 @@ promotions.put('/:id', adminOnly, asyncHandler(async (req, res) => {
     await conn.query(
       `UPDATE promotions SET
           name = COALESCE($1, name), description = COALESCE($2, description),
-          scope = COALESCE($3, scope), starts_at = COALESCE($4, starts_at),
-          ends_at = COALESCE($5, ends_at), active = COALESCE($6, active), updated_at = NOW()
-        WHERE id = $7`,
-      [b.name ?? null, b.description ?? null, b.scope ?? null, b.startsAt ?? null, b.endsAt ?? null, b.active ?? null, req.params.id]
+          kind = COALESCE($3, kind), scope = COALESCE($4, scope),
+          starts_at = COALESCE($5, starts_at),
+          ends_at = $6,
+          active = COALESCE($7, active), updated_at = NOW()
+        WHERE id = $8`,
+      [b.name ?? null, b.description ?? null, b.kind ?? null, b.scope ?? null,
+       b.startsAt ?? null, b.endsAt ?? null, b.active ?? null, req.params.id]
     );
     if (prices !== undefined) {
       await conn.query('DELETE FROM promotion_prices WHERE promotion_id=$1', [req.params.id]);
@@ -483,8 +505,17 @@ const UserCreateSchema = UserSchema.extend({
   priceListId: z.string().uuid().nullable().optional(),
 });
 
-users.post('/', adminOnly, asyncHandler(async (req, res) => {
-  const b = UserCreateSchema.parse(req.body);
+// POST /users — público para auto-registro de clientes; solo admins pueden asignar otros roles
+users.post('/', optionalAuth, asyncHandler(async (req, res) => {
+  const isAdmin = req.user?.role === 'admin';
+  const raw = req.body;
+  // Unauthenticated callers can only create client accounts
+  if (!isAdmin && raw.role && raw.role !== 'client') {
+    throw new ApiError(403, 'FORBIDDEN', 'Solo se permite el rol client en auto-registro');
+  }
+  if (!isAdmin) raw.role = 'client';
+
+  const b = UserCreateSchema.parse(raw);
   if (!b.password) throw new ApiError(400, 'MISSING_PASSWORD', 'password required for new users');
   const hash = await bcrypt.hash(b.password, 10);
 
@@ -514,6 +545,29 @@ users.post('/', adminOnly, asyncHandler(async (req, res) => {
 
     await conn.query('COMMIT');
     res.status(201).json({ id: userId });
+
+    // Notificación al asesor (fire-and-forget — no bloquea la respuesta)
+    if (b.role === 'client' && b.branchId) {
+      query(
+        `SELECT u.name, u.email
+           FROM users u
+           JOIN company_branches cb ON cb.advisor_id = u.id
+          WHERE cb.id = $1 LIMIT 1`,
+        [b.branchId]
+      ).then(async (advisorRows) => {
+        const advisor = advisorRows.rows[0];
+        if (!advisor) return;
+        await sendAdvisorNewClientEmail({
+          advisorEmail: advisor.email,
+          advisorName: advisor.name,
+          clientName: b.name,
+          clientEmail: b.email,
+          clientNit: `NIT-${userId.slice(0, 8)}`,
+        });
+      }).catch((err) => {
+        console.error('[admin/users] error enviando email al asesor:', err.message);
+      });
+    }
   } catch (e) {
     await conn.query('ROLLBACK');
     throw e;

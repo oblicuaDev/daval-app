@@ -27,7 +27,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
   const r = await query(
-    `SELECT p.id, p.sku, p.name, p.unit, p.stock, p.quality, p.image_url, p.active,
+    `SELECT p.id, p.sku, p.name, p.description, p.unit, p.stock, p.quality, p.image_url, p.active,
             p.category_id, c.name AS category_name
        FROM products p
        LEFT JOIN categories c ON c.id = p.category_id
@@ -56,7 +56,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const items = r.rows.map(p => {
     const pr = prices.get(p.id) ?? {};
     return {
-      id: p.id, sku: p.sku, name: p.name,
+      id: p.id, sku: p.sku, name: p.name, description: p.description ?? null,
       categoryId: p.category_id, categoryName: p.category_name,
       unit: p.unit, stock: Number(p.stock), quality: p.quality,
       imageUrl: p.image_url, active: p.active,
@@ -72,10 +72,11 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Admin: create
+// categoryId acepta UUID string o integer (la tabla categories puede usar cualquier tipo)
 const CreateSchema = z.object({
   name: z.string().min(1),
   sku: z.string().min(1),
-  categoryId: z.string().uuid().nullable().optional(),
+  categoryId: z.union([z.string(), z.number()]).nullable().optional(),
   unit: z.string().optional(),
   stock: z.number().nonnegative().default(0),
   quality: z.string().optional(),
@@ -91,7 +92,7 @@ router.post('/', requireAuth, requireRole('admin'), asyncHandler(async (req, res
     `INSERT INTO products (name, sku, category_id, unit, stock, quality, image_url, base_price, active, description)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, $10)
      RETURNING id`,
-    [b.name, b.sku, b.categoryId ?? null, b.unit ?? null, b.stock, b.quality ?? null,
+    [b.name, b.sku, (b.categoryId === 'null' ? null : b.categoryId) ?? null, b.unit ?? null, b.stock, b.quality ?? null,
     b.imageUrl ?? null, b.basePrice, b.active, b.description ?? null]
   );
   res.status(201).json({ id: r.rows[0].id });
@@ -137,10 +138,16 @@ router.put('/:id', requireAuth, requireRole('admin'), asyncHandler(async (req, r
   const params = [];
   const map = {
     name: 'name', sku: 'sku', categoryId: 'category_id', unit: 'unit', stock: 'stock',
-    quality: 'quality', imageUrl: 'image_url', basePrice: 'base_price', active: 'active'
+    quality: 'quality', imageUrl: 'image_url', basePrice: 'base_price', active: 'active',
+    description: 'description',
   };
   for (const [k, col] of Object.entries(map)) {
-    if (b[k] !== undefined) { params.push(b[k]); set.push(`${col} = $${params.length}`); }
+    if (b[k] !== undefined) {
+      // Convierte el string literal "null" (enviado por frontend) a NULL real
+      const val = b[k] === 'null' ? null : b[k];
+      params.push(val);
+      set.push(`${col} = $${params.length}`);
+    }
   }
   if (!set.length) throw new ApiError(400, 'EMPTY_PATCH', 'No fields to update');
   params.push(req.params.id);

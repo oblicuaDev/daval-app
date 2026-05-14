@@ -86,12 +86,13 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     for (const it of body.items) {
       const p = priceMap.get(it.productId);
       const priceType = p.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
-      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
-      itemParams.push(quotation.id, it.productId, it.quantity, priceType, p.finalPrice);
-      pi += 5;
+      const subtotal = p.finalPrice * it.quantity;
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4},$${pi+5})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, p.finalPrice, subtotal);
+      pi += 6;
     }
     await conn.query(
-      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price)
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price, subtotal)
        VALUES ${itemValues.join(',')}`,
       itemParams
     );
@@ -229,12 +230,13 @@ router.post('/:id/clone', requireAuth, asyncHandler(async (req, res) => {
       const p = priceMap.get(it.productId);
       const priceType = p?.promotionPrice != null && p.promotionPrice <= p.priceListPrice ? 'promotion' : 'price_list';
       const unitPrice = p?.finalPrice ?? it.unitPrice;
-      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4})`);
-      itemParams.push(quotation.id, it.productId, it.quantity, priceType, unitPrice);
-      pi += 5;
+      const subtotal = unitPrice * it.quantity;
+      itemValues.push(`($${pi},$${pi+1},$${pi+2},$${pi+3},$${pi+4},$${pi+5})`);
+      itemParams.push(quotation.id, it.productId, it.quantity, priceType, unitPrice, subtotal);
+      pi += 6;
     }
     await conn.query(
-      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price) VALUES ${itemValues.join(',')}`,
+      `INSERT INTO quotation_items (quotation_id, product_id, quantity, price_type, unit_price, subtotal) VALUES ${itemValues.join(',')}`,
       itemParams
     );
     await conn.query('COMMIT');
@@ -283,7 +285,7 @@ async function loadQuotation(id, user = null) {
     }
   }
 
-  const [items, comments] = await Promise.all([
+  const [items, comments, stalePrices] = await Promise.all([
     query(
       `SELECT qi.id, qi.product_id, p.name AS product_name, p.sku, qi.quantity, qi.price_type,
               qi.unit_price, qi.subtotal
@@ -301,16 +303,29 @@ async function loadQuotation(id, user = null) {
         ORDER BY c.created_at`,
       [id]
     ),
+    // Detecta si algún producto fue modificado después de crear la cotización
+    // (indica que los precios históricos del item pueden no reflejar los actuales)
+    query(
+      `SELECT 1
+         FROM quotation_items qi
+         JOIN products p ON p.id = qi.product_id
+        WHERE qi.quotation_id = $1
+          AND p.updated_at > $2
+        LIMIT 1`,
+      [id, row.created_at]
+    ),
   ]);
+
   return {
     ...mapQuotationRow(row),
     notes: row.notes,
     siigoUrl: row.siigo_url,
     siigoQuotationId: row.siigo_quotation_id,
+    pricesOutdated: stalePrices.rowCount > 0,
     items: items.rows.map(it => ({
       id: it.id, productId: it.product_id, productName: it.product_name, sku: it.sku,
       quantity: Number(it.quantity), priceType: it.price_type,
-      unitPrice: Number(it.unit_price), subtotal: Number(it.subtotal),
+      unitPrice: Number(it.unit_price), subtotal: Number(it.subtotal ?? it.unit_price * it.quantity),
     })),
     comments: comments.rows.map(c => ({
       id: c.id, text: c.text, createdAt: c.created_at,

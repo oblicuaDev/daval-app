@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useRoutes, useCreateRoute, useUpdateRoute, useDeleteRoute } from '../../hooks/useRoutes.js';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { loadGoogleMaps } from '../../utils/loadGoogleMaps.js';
 
 const WEEK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -55,38 +56,6 @@ const MAP_STYLES = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
 ];
 
-let googleMapsPromise;
-
-function loadGoogleMaps() {
-  if (window.google?.maps) return Promise.resolve(window.google.maps);
-  if (googleMapsPromise) return googleMapsPromise;
-
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    return Promise.reject(new Error('Falta VITE_GOOGLE_MAPS_API_KEY en .env.local'));
-  }
-
-  googleMapsPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-google-maps="true"]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.google.maps), { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&language=es&region=CO`;
-    script.async = true;
-    script.defer = true;
-    script.dataset.googleMaps = 'true';
-    script.onload = () => resolve(window.google.maps);
-    script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
-    document.head.appendChild(script);
-  });
-
-  return googleMapsPromise;
-}
-
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70">
@@ -124,6 +93,7 @@ function boundsToGoogle(maps, bounds) {
 function edgePoints(bounds) {
   const midLat = (bounds.north + bounds.south) / 2;
   const midLng = (bounds.east + bounds.west) / 2;
+  
   return {
     streetFrom: { lat: bounds.south, lng: midLng },
     streetTo: { lat: bounds.north, lng: midLng },
@@ -141,6 +111,8 @@ function routeNameFromResult(result) {
 function geocodeLatLng(geocoder, point) {
   return new Promise(resolve => {
     geocoder.geocode({ location: point }, (results, status) => {
+      console.log(results);
+      
       if (status !== 'OK' || !results?.length) {
         resolve('');
         return;

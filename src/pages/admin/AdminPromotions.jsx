@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
+  Infinity,
   Pencil,
   Plus,
   Tag,
@@ -36,6 +37,7 @@ const CARD_COLORS = ['bg-rose-600', 'bg-amber-600', 'bg-blue-600', 'bg-emerald-6
 
 const EMPTY_FORM = {
   name: '',
+  kind: 'eventual',
   scope: 'all',
   clientIds: [],
   startsAt: '',
@@ -121,6 +123,7 @@ function getPromotionState(promotion) {
 
   if (start && now < start) return { label: 'Programada', className: 'text-blue-300 bg-blue-950 border-blue-800' };
   if (end && now > end) return { label: 'Finalizada', className: 'text-gray-300 bg-gray-700 border-gray-600' };
+  if (promotion.kind === 'permanent' || !end) return { label: 'Permanente', className: 'text-violet-300 bg-violet-950 border-violet-800' };
   return { label: 'Activa', className: 'text-emerald-300 bg-emerald-950 border-emerald-800' };
 }
 
@@ -155,6 +158,7 @@ export default function AdminPromotions() {
     setEditPromotion(promotion);
     setForm({
       name: promotion.name || '',
+      kind: promotion.kind || 'eventual',
       scope: promotion.scope || 'all',
       clientIds: promotion.clientIds || [],
       startsAt: promotion.startsAt ? promotion.startsAt.slice(0, 16) : '',
@@ -236,15 +240,19 @@ export default function AdminPromotions() {
   }
 
   async function handleSave() {
-    if (!form.name || !form.startsAt || !form.endsAt) return;
-    if (new Date(form.startsAt) >= new Date(form.endsAt)) return;
+    if (!form.name || !form.startsAt) return;
+    if (form.kind === 'eventual') {
+      if (!form.endsAt) return;
+      if (new Date(form.startsAt) >= new Date(form.endsAt)) return;
+    }
 
     const prices = Object.entries(form.pricesBySku).map(([sku, price]) => ({ sku, price }));
     const payload = {
       name: form.name,
+      kind: form.kind,
       scope: form.scope,
       startsAt: form.startsAt,
-      endsAt: form.endsAt,
+      endsAt: form.kind === 'permanent' ? null : form.endsAt,
       active: true,
       prices,
       clientIds: form.scope === 'specific' ? form.clientIds : [],
@@ -259,8 +267,11 @@ export default function AdminPromotions() {
     setShowModal(false);
   }
 
-  const hasInvalidDates = form.startsAt && form.endsAt && new Date(form.startsAt).getTime() >= new Date(form.endsAt).getTime();
-  const canSave = form.name && form.startsAt && form.endsAt && !hasInvalidDates && (form.scope === 'all' || form.clientIds.length > 0);
+  const hasInvalidDates = form.kind === 'eventual' && form.startsAt && form.endsAt && new Date(form.startsAt).getTime() >= new Date(form.endsAt).getTime();
+  const canSave = form.name && form.startsAt &&
+    (form.kind === 'permanent' || form.endsAt) &&
+    !hasInvalidDates &&
+    (form.scope === 'all' || form.clientIds.length > 0);
 
   return (
     <div className="space-y-5">
@@ -321,10 +332,17 @@ export default function AdminPromotions() {
                         <CalendarClock className="w-3.5 h-3.5" />
                         Desde: <span className="text-gray-300">{formatDateTime(promotion.startsAt)}</span>
                       </p>
-                      <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                        <CalendarClock className="w-3.5 h-3.5" />
-                        Hasta: <span className="text-gray-300">{formatDateTime(promotion.endsAt)}</span>
-                      </p>
+                      {promotion.kind === 'permanent' ? (
+                        <p className="text-xs text-violet-400 flex items-center gap-1.5">
+                          <Infinity className="w-3.5 h-3.5" />
+                          Sin fecha de vencimiento
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                          <CalendarClock className="w-3.5 h-3.5" />
+                          Hasta: <span className="text-gray-300">{formatDateTime(promotion.endsAt)}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -354,7 +372,39 @@ export default function AdminPromotions() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Tipo de promocion *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm(c => ({ ...c, kind: 'eventual', endsAt: c.endsAt }))}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                    form.kind === 'eventual' ? 'border-blue-500 bg-blue-950 text-blue-200' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'
+                  }`}
+                >
+                  <CalendarClock className="w-5 h-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">Eventual</p>
+                    <p className="text-xs opacity-70">Con fecha de fin</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(c => ({ ...c, kind: 'permanent', endsAt: '' }))}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                    form.kind === 'permanent' ? 'border-violet-500 bg-violet-950 text-violet-200' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'
+                  }`}
+                >
+                  <Infinity className="w-5 h-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">Permanente</p>
+                    <p className="text-xs opacity-70">Sin fecha de fin</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className={`grid gap-4 ${form.kind === 'eventual' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
               <div>
                 <label className={labelClass}>Fecha y hora desde *</label>
                 <input
@@ -364,15 +414,17 @@ export default function AdminPromotions() {
                   onChange={e => setForm(current => ({ ...current, startsAt: e.target.value }))}
                 />
               </div>
-              <div>
-                <label className={labelClass}>Fecha y hora hasta *</label>
-                <input
-                  type="datetime-local"
-                  className={inputClass}
-                  value={form.endsAt}
-                  onChange={e => setForm(current => ({ ...current, endsAt: e.target.value }))}
-                />
-              </div>
+              {form.kind === 'eventual' && (
+                <div>
+                  <label className={labelClass}>Fecha y hora hasta *</label>
+                  <input
+                    type="datetime-local"
+                    className={inputClass}
+                    value={form.endsAt}
+                    onChange={e => setForm(current => ({ ...current, endsAt: e.target.value }))}
+                  />
+                </div>
+              )}
             </div>
             {hasInvalidDates && (
               <div className="rounded-lg border border-red-900 bg-red-950 p-3">

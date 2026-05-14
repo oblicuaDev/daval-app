@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, FileText, Paperclip, MessageSquare,
+  AlertTriangle, ArrowLeft, Package, FileText, Paperclip, MessageSquare,
   File, FileText as FilePdf, ImageIcon, Download, User, Calendar, ExternalLink,
 } from 'lucide-react';
 import { useQuotation } from '../../hooks/useQuotations.js';
@@ -67,6 +67,20 @@ export default function ClientOrderDetail() {
         <ArrowLeft className="w-4 h-4" />
         Volver a mis cotizaciones
       </button>
+
+      {order.pricesOutdated && (
+        <div className="flex items-start gap-3 bg-amber-950 border border-amber-800 rounded-xl px-5 py-4">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-300">Los precios de esta cotización pueden estar desactualizados</p>
+            <p className="text-xs text-amber-400 mt-1">
+              Uno o más productos fueron modificados después de crear esta cotización.
+              Los precios mostrados son los que se aplicaron al momento de generarla.
+              Si necesitas precios actualizados, genera una nueva cotización.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-5 items-start">
 

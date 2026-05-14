@@ -6,7 +6,7 @@ function buildConfig() {
   const base = {
     max:                     Number(process.env.DB_MAX_CONNECTIONS) || 10,
     idleTimeoutMillis:       30_000,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 15_000,
   };
 
   // DATABASE_URL tiene precedencia — usado en Supabase, Railway, Render
@@ -32,9 +32,10 @@ function buildConfig() {
 
 const pool = new Pool(buildConfig());
 
+// Log idle-client errors but do NOT exit — cloud DBs (Supabase, Railway) drop idle
+// connections routinely; pg Pool handles reconnection automatically.
 pool.on('error', (err) => {
-  console.error('[DB] Error inesperado en cliente inactivo:', err.message);
-  process.exit(1);
+  console.error('[DB] Error en cliente inactivo (ignorado, Pool reconnectará):', err.message);
 });
 
 /**

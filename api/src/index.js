@@ -14,6 +14,7 @@ import adminRouter from './routes/admin.js';
 import siigoRouter from './routes/siigo.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import pool from './config/db.js';
+import { resetStuckSync } from './services/siigoSync.js';
 
 const app = express();
 
@@ -53,4 +54,11 @@ app.use(errorHandler);
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {
   console.log(`[daval-api] listening on :${port} (TZ=${process.env.TZ})`);
+
+  // Pre-warm the DB pool so the first real request never hits a cold connection.
+  pool.query('SELECT 1')
+    .then(() => console.log('[DB] Pool listo'))
+    .catch((err) => console.error('[DB] Warmup falló (no es fatal):', err.message));
+
+  resetStuckSync().catch((err) => console.error('[startup] resetStuckSync falló:', err.message));
 });

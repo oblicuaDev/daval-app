@@ -21,6 +21,16 @@ export function verifyRefreshToken(token) {
   return jwt.verify(token, refreshSecret());
 }
 
+// Parses the JWT if present but never rejects — req.user is null when unauthenticated.
+export function optionalAuth(req, _res, next) {
+  const header = req.header('authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token) {
+    try { req.user = jwt.verify(token, process.env.JWT_SECRET); } catch { /* ignore */ }
+  }
+  next();
+}
+
 export function requireAuth(req, _res, next) {
   const header = req.header('authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
