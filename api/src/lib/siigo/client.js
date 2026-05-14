@@ -90,7 +90,7 @@ export async function siigoFetch(path, { method = 'GET', body, query: qs } = {})
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new ApiError(502, 'SIIGO_HTTP_ERROR', `SIIGO ${method} ${path} → ${res.status}: ${text.slice(0, 400)}`);
+    throw new ApiError(502, 'SIIGO_HTTP_ERROR', `SIIGO ${method} ${path} → ${res.status}: ${text.slice(0, 400)}`, { siigoStatus: res.status });
   }
   return res.json();
 }

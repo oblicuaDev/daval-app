@@ -6,6 +6,7 @@ import { ApiError } from '../middleware/error.js';
 import { asyncHandler } from '../lib/validate.js';
 import { testConnection } from '../lib/siigo/client.js';
 import { startProductsSync, isSyncRunning } from '../services/siigoSync.js';
+import { pushQuoteToSiigo, getIntegrationHistory } from '../services/siigoQuote.js';
 
 const router = Router();
 const adminOnly = [requireAuth, requireRole('admin')];
@@ -115,11 +116,42 @@ router.get('/sync/logs', adminOnly, asyncHandler(async (req, res) => {
 }));
 
 // =============================================================
-// Push de cotización (placeholder, queda como TODO mientras se define el contrato)
+// Push de cotización a SIIGO
+// POST /integrations/siigo/quotes/:quoteId
+// POST /integrations/siigo/quotes/:quoteId/retry   (debug/admin — fuerza reenvío)
 // =============================================================
 
-router.post('/quotations/:id/push', adminOnly, asyncHandler(async (_req, _res) => {
-  throw new ApiError(501, 'NOT_IMPLEMENTED', 'Push de cotización a SIIGO aún no implementado.');
+router.post('/quotes/:quoteId', adminOnly, asyncHandler(async (req, res) => {
+  const result = await pushQuoteToSiigo(
+    req.params.quoteId,
+    req.user.sub,
+    { force: false }
+  );
+  res.status(201).json(result);
+}));
+
+router.post('/quotes/:quoteId/retry', adminOnly, asyncHandler(async (req, res) => {
+  const result = await pushQuoteToSiigo(
+    req.params.quoteId,
+    req.user.sub,
+    { force: true }
+  );
+  res.status(201).json(result);
+}));
+
+router.get('/quotes/:quoteId/history', adminOnly, asyncHandler(async (req, res) => {
+  const items = await getIntegrationHistory(req.params.quoteId);
+  res.json({ items });
+}));
+
+// Alias del endpoint legacy (mantiene compatibilidad si ya estaba siendo usado)
+router.post('/quotations/:id/push', adminOnly, asyncHandler(async (req, res) => {
+  const result = await pushQuoteToSiigo(
+    req.params.id,
+    req.user.sub,
+    { force: false }
+  );
+  res.status(201).json(result);
 }));
 
 export default router;

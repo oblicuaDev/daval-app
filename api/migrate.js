@@ -66,6 +66,8 @@ const STEPS = [
   { name: '006_uq_product_price_list', file: '../database/alter.pgsql',
     // alter.pgsql está una carpeta arriba de database/migrations — apuntamos al raíz
     file: 'alter.pgsql' },
+  { name: '007_siigo_quote_integrations', file: 'migrations/007_siigo_quote_integrations.sql' },
+  { name: '008_siigo_seller_id',          file: 'migrations/008_siigo_seller_id.sql' },
   ...(SEED ? [{ name: 'seed_001_initial', file: 'seeds/001_initial.sql' }] : []),
 ];
 
