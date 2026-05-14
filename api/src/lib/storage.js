@@ -1,55 +1,69 @@
 /**
- * Helper para subir/eliminar imágenes en Supabase Storage.
- * Usa fetch nativo (Node 18+) — sin dependencias extra.
+ * Supabase Storage via protocolo S3-compatible.
+ * Más fiable que la REST API con JWT en entornos serverless.
  *
  * Variables de entorno requeridas:
- *   SUPABASE_URL          https://<project>.supabase.co
- *   SUPABASE_SERVICE_KEY  service_role key (solo backend, nunca frontend)
- *   SUPABASE_BUCKET       nombre del bucket (default: product-images)
+ *   SUPABASE_S3_ENDPOINT   https://<project>.storage.supabase.co/storage/v1/s3
+ *   SUPABASE_S3_ACCESS_KEY Access Key ID   (Supabase → Storage → S3 Connection)
+ *   SUPABASE_S3_SECRET_KEY Secret Access Key
+ *   SUPABASE_S3_REGION     (opcional, default: auto)
+ *   SUPABASE_BUCKET        nombre del bucket (default: product-images)
+ *
+ * URL pública resultante:
+ *   https://<project>.supabase.co/storage/v1/object/public/<bucket>/<filename>
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+
 const BUCKET = process.env.SUPABASE_BUCKET ?? 'product-images';
 
-function storageBase() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error('Faltan SUPABASE_URL o SUPABASE_SERVICE_KEY para subir imágenes');
+function buildPublicUrl(filename) {
+  // Deriva la URL pública a partir del endpoint S3 o de SUPABASE_URL
+  const endpoint = process.env.SUPABASE_S3_ENDPOINT ?? '';
+  // endpoint = https://<project>.storage.supabase.co/storage/v1/s3
+  // → base   = https://<project>.supabase.co
+  const base = endpoint
+    .replace('.storage.supabase.co/storage/v1/s3', '.supabase.co')
+    .replace(/\/storage\/v1\/s3\/?$/, '');
+  return `${base}/storage/v1/object/public/${BUCKET}/${filename}`;
+}
+
+function getClient() {
+  const endpoint = process.env.SUPABASE_S3_ENDPOINT;
+  const accessKeyId = process.env.SUPABASE_S3_ACCESS_KEY;
+  const secretAccessKey = process.env.SUPABASE_S3_SECRET_KEY;
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error(
+      'Faltan variables: SUPABASE_S3_ENDPOINT, SUPABASE_S3_ACCESS_KEY, SUPABASE_S3_SECRET_KEY'
+    );
   }
-  return `${SUPABASE_URL}/storage/v1/object`;
+
+  return new S3Client({
+    endpoint,
+    region: process.env.SUPABASE_S3_REGION ?? 'auto',
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true, // requerido por Supabase S3
+  });
 }
 
 /**
  * Sube un Buffer al bucket de Supabase Storage.
- * @param {Buffer} buffer       Contenido del archivo
- * @param {string} filename     Nombre del archivo en el bucket (ej: "abc123.jpg")
- * @param {string} contentType  MIME type (ej: "image/jpeg")
- * @returns {Promise<string>}   URL pública del archivo
+ * @returns {Promise<string>} URL pública del archivo
  */
 export async function uploadToStorage(buffer, filename, contentType) {
-  const base = storageBase();
-  const res = await fetch(`${base}/${BUCKET}/${filename}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-      'Content-Type': contentType,
-      'x-upsert': 'true',
-    },
-    body: buffer,
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Supabase Storage upload falló (${res.status}): ${text}`);
-  }
-
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`;
+  const client = getClient();
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: filename,
+    Body: buffer,
+    ContentType: contentType,
+  }));
+  return buildPublicUrl(filename);
 }
 
 /**
- * Elimina un archivo del bucket de Supabase Storage.
- * Ignora errores (imagen no existente, URL externa, etc.).
- * @param {string|null} url  URL pública del archivo a eliminar
+ * Elimina un archivo del bucket. Ignora errores silenciosamente.
  */
 export async function deleteFromStorage(url) {
   if (!url || !url.includes('/storage/v1/object/public/')) return;
@@ -58,9 +72,8 @@ export async function deleteFromStorage(url) {
   const filename = url.split(marker)[1];
   if (!filename) return;
 
-  const base = storageBase();
-  await fetch(`${base}/${BUCKET}/${filename}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
-  }).catch(() => { /* ignorar errores de borrado */ });
+  try {
+    const client = getClient();
+    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: filename }));
+  } catch { /* ignorar */ }
 }
