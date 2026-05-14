@@ -1,0 +1,21 @@
+# Frontend — not needed on Railway (backend only)
+src/
+dist/
+public/
+
+# Root node_modules (frontend deps)
+node_modules/
+
+# Dev / tooling
+postman/
+.env.example
+api/.env.example
+*.md
+.claude/
+infra/
+
+# Uploaded user files (ephemeral, not part of the build)
+api/uploads/
+
+# Test / seed data (not needed at runtime)
+database/seeds/
